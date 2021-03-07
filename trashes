@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # trashes
-# v0.9.1
+# v0.9.2
 # macOS
 #
 # requisite: trash - https://github.com/sindresorhus/macos-trash
@@ -25,7 +25,7 @@ trashxa="local.lcars.fpsr.loc#PS"
 tempdir="$HOME/.cache/Finder"
 configdir="$HOME/.config/TrashTools"
 protectlist="$configdir/protections.txt"
-tmploc="/tmp/local.lcars.TrashTools.trashes"
+tmploc="/tmp/local.lcars.TrashTools.$account.trashes"
 
 icloud="$HOME/Library/Mobile Documents/com~apple~CloudDocs/"
 
@@ -40,6 +40,8 @@ tell application "System Events"
 end tell
 EOT
 }
+
+### LATER: scan $@ for .Trash(es) filepaths > put-back function
 
 errors=false
 warnings=false
@@ -63,6 +65,7 @@ do
 		_beep &
 		_notify "🗑 File already in Trash!" "$filename"
 		continue
+		### LATER: put-back function
 	fi
 	if [[ $filename == ".DS_Store" ]] ; then
 		if rm -f "$filepath" &>/dev/null ; then
@@ -71,24 +74,28 @@ do
 	fi
 	if [[ $filepath != "$icloud"* ]] ; then
 		fpathvol=$(df "$filepath" | tail -n +2 | awk '{print substr($0, index($0,$9))}')
-		if [[ $fpathvol == "/System/Volumes/Data" ]] || ! [[ $fpathvol ]] ; then
+		if [[ $fpathvol == "/System/Volumes/Data" ]] || [[ $fpathvol == "/" ]] || ! [[ $fpathvol ]] ; then
+			fpathvol="/"
 			xapath=$(echo "$filepath" | sed 's:^/::')
 		else
-			xapath=$(echo "$filepath" | sed "s:^$fpathvol/::")
+			fpathvol="$fpathvol/"
+			xapath=$(echo "$filepath" | sed "s:^$fpathvol::")
 		fi
 	else
+		fpathvol="$icloud"
 		xapath=$(echo "$filepath" | sed "s:^$icloud::")
 	fi
 	xattr -ws "$trashxa" "$xapath" "$filepath" 2>/dev/null
 	trash_out=$(trash "$filepath" 2>&1)
 	if ! [[ $trash_out ]] ; then
-		recents="$recents\n$filename"
+		recents="$recents\n$fpathvol:$filename"
 		continue
 	fi
 	if [[ $trash_out == *"don’t have permission to access it." ]] ; then
 		errors=true
 		_notify "⚠️ Could not move to Trash" "Permissions: $filename"
 		rootlist="$rootlist\n$filepath"
+		recents="$recents\n$fpathvol:$filename"
 		((errorcount++))
 	elif [[ $trash_out == *"doesn’t have one." ]] ; then
 		warnings=true
@@ -147,10 +154,19 @@ do
 	fi
 	if [[ -e "$rmpath" ]] ; then
 		xattr -ds "$trashxa" "$rmpath" 2>/dev/null
-		((remaincount++))
-	else
 		rmname=$(basename "$rmpath")
-		recents="$recents\n$rmname"
+		if [[ $rmpath != "$icloud"* ]] ; then
+			fpathvol=$(df "$rmpath" | tail -n +2 | awk '{print substr($0, index($0,$9))}')
+			if [[ $fpathvol == "/System/Volumes/Data" ]] || [[ $fpathvol == "/" ]] || ! [[ $fpathvol ]] ; then
+				fpathvol="/"
+			else
+				fpathvol="$fpathvol/"
+			fi
+		else
+			fpathvol="$icloud"
+		fi
+		recents=$(echo -e "$recents" | grep -v "^$fpathvol:$rmname")
+		((remaincount++))
 	fi
 done < <(echo "$rootlist")
 if [[ $remaincount -ge 1 ]] ; then
