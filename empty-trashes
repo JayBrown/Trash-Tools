@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9
+# v0.9.2
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -24,7 +24,7 @@ account=$(id -u)
 
 tempdir="$HOME/.cache/Finder"
 configdir="$HOME/.config/TrashTools"
-undoloc="/tmp/local.lcars.TrashTools.trashes"
+undoloc="/tmp/local.lcars.TrashTools.$account.trashes"
 fman="$configdir/file_manager.txt"
 fman_name=$(head -1 < "$fman" 2>/dev/null)
 ! [[ $fman_name ]] && fman_name="Finder"
