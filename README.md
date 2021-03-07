@@ -11,7 +11,7 @@ There is, however, an old Unix flag called **system no-unlink** (`sunlnk`), whic
 
 The **Trash Tools**, in tandem with its `uunlnk` script, can offer at least a workaround: `uunlnk` will add an **extended attribute** (XA) to a file, and if Trash Tools' file removal scripts access that file, any trash or unlink operation will fail, while the user is still free to perform any and all other file operations, including renaming, moving to a different location, and modifying file contents. These protected files can still be trashed or unlinked by other processes, but if the user remaps the keyboard shortcuts of all trash and unlink routines in his file manager to the Trash Tools scripts, any **accidental file deletions** will at least be prevented in the user's file manager of choice.
 
-Most users will probably have no need for such a solution, because the normal user just moves files to the Trash, and can then easily restore them, if the deletion was an accident. But these tools might be valuable for those users who perform a lot of permanent deletions on scratch or RAM disks. Accidents in these situations cannot be undone.
+Most users will probably have no need for such a solution, because the normal user just moves files to the Trash, and can then easily restore them, if the deletion was an accident. But these tools might be valuable for those users who perform a lot of permanent deletions on scratch or RAM disks. Accidents in these situations cannot be undone. Furthermore, some third-party file managers do not offer the option to undo a Trash operation or restore a file from the Trash to its original path.
 
 ### Notes
 * regular file copies of protected files will have the same protection (i.e. XAs) as the originals
@@ -68,7 +68,7 @@ Note: for the same reasons as stated above, `empty-trashes` will still use the F
 ⚠️ **Note: `undo-trashes` is not yet implemented** and needs some research & a lot of work first.
 
 ### `unlink`
-Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution!
+Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution! And, of course, protect important files using the Trash Tools. 😉
 
 ## Uninstall Trash Tools
 * delete the repository and all copies or symbolic links of the following CLIs: `tt-setup` `uunlnk` `list-protected` `trashes` `empty-trashes` `undo-trashes` `unlink`
