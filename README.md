@@ -85,6 +85,8 @@ Note: `unlink` will delete `.DS_Store` files immediately.
 
 ![sg01](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/01_uunlnk_protected.png)
 
+![sg09](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/09_uunlnk_toggle-root.png)
+
 ![sg02](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/02_uunlnk_unprotected.png)
 
 ![sg03](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/03_unlink_protected-error.png)
