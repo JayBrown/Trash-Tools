@@ -77,19 +77,19 @@ Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In ca
 
 ## Screenshots
 
-![sg01](https://github.com/JayBrown/Trash-Tools/blob/master/img/01_uunlnk_protected.png)
+![sg01](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/01_uunlnk_protected.png)
 
-![sg02](https://github.com/JayBrown/Trash-Tools/blob/master/img/02_uunlnk_unprotected.png)
+![sg02](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/02_uunlnk_unprotected.png)
 
-![sg03](https://github.com/JayBrown/Trash-Tools/blob/master/img/03_unlink_protected-error.png)
+![sg03](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/03_unlink_protected-error.png)
 
-![sg04](https://github.com/JayBrown/Trash-Tools/blob/master/img/04_empty-trashes.png)
+![sg04](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/04_empty-trashes.png)
 
-![sg05](https://github.com/JayBrown/Trash-Tools/blob/master/img/05_trashes_usingFinder.png)
+![sg05](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/05_trashes_usingFinder.png)
 
-![sg06](https://github.com/JayBrown/Trash-Tools/blob/master/img/06_unlink.png)
+![sg06](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/06_unlink.png)
 
-![sg07](https://github.com/JayBrown/Trash-Tools/blob/master/img/07_unlink_error.png)
+![sg07](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/07_unlink_error.png)
 
-![sg08](https://github.com/JayBrown/Trash-Tools/blob/master/img/08_unlink_root.png)
+![sg08](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/08_unlink_root.png)
 
