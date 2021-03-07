@@ -1,0 +1,211 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# ttsu
+# v0.9
+# macOS
+#
+# Set-up Trash Tools - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: - (command-line only)
+#
+# move files to their relevant trash
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
+
+if [[ $1 =~ ^(-p|--protections)$ ]] ; then
+	cat "$HOME/.config/TrashTools/protections.txt"
+	exit
+fi
+
+errors=false
+
+read -d '' programs <<"EOP"
+	empty-trashes
+	unlink
+	trashes
+	list-protected
+	undo-trashes
+	uunlnk
+EOP
+
+echo " * Looking for programs..."
+while read -r program
+do
+	if command -v "$program" &>/dev/null ; then
+		echo "✅  Installed: $program"
+	else
+		echo "❓  MISSING: $program"
+		errors=true
+	fi
+done < <(echo "$programs")
+
+read -d '' tests <<"EOT"
+	trash;trash;Specify one or more paths
+EOT
+
+echo " * Checking requisites..."
+while read -r teststring
+do
+	reqcli=$(echo "$teststring" | awk -F";" '{print $1}')
+	if command -v "$reqcli" &>/dev/null ; then
+		echo "✅  Installed: $reqcli"
+		testcmd=$(echo "$teststring" | awk -F";" '{print $2}')
+		testout=$(echo "$teststring" | awk -F";" '{print substr($0, index($0,$3))}')
+		if [[ $("$testcmd" 2>&1) == "$testout" ]] ; then
+			echo "✅  Tested: $reqcli"
+		else
+			echo "❌  FAILED: $reqcli"
+			errors=true
+		fi
+	else
+		echo "❓  MISSING: $reqcli"
+		errors=true
+	fi
+done < <(echo "$tests")
+
+read -d '' ulocs <<"EOL"
+	.cache/Finder
+	.config/TrashTools
+EOL
+
+echo " * Checking user directories & file manager..."
+while read -r uloc
+do
+	uloc="$HOME/$uloc"
+	if ! [[ -e "$uloc" ]] ; then
+		if mkdir -p "$uloc" &>/dev/null ; then
+			echo "✅  Directory created: $uloc"
+		else
+			echo "❌  ERROR creating: $uloc"
+			errors=true
+		fi
+	else
+		if ! [[ -d "$uloc" ]] ; then
+			if ! rm -rf "$uloc" &>/dev/null ; then
+				echo "⚠️ WARNING - improper: $uloc"
+			fi
+			if mkdir -p "$uloc" &>/dev/null ; then
+				echo "✅  Directory created: $uloc"
+			else
+				echo "❌  ERROR creating: $uloc"
+				errors=true
+			fi
+		else
+			echo "✅  Directory exists: $uloc"
+		fi
+	fi
+done < <(echo "$ulocs")
+
+read -d '' configs <<"EOC"
+	.config/TrashTools/protections.txt
+EOC
+while read -r configloc
+do
+	configloc="$HOME/$configloc"
+	if [[ -f "$configloc" ]] ; then
+		echo "✅  Config exists: $configloc"
+	else
+		if touch "$configloc" &>/dev/null ; then
+			echo "✅  Empty config created: $configloc"
+		else
+			echo "❌  ERROR creating: $configloc"
+			errors=true
+		fi
+	fi
+done < <(echo "$configs")
+
+fman="$HOME/.config/TrashTools/file_manager.txt"
+
+fmaninit=false
+if ! [[ -f "$fman" ]] ; then
+	fmaninit=true
+else
+	echo "✅  Config exists: $fman"
+	fman_all=$(grep -v "^$" < "$fman" 2>/dev/null)
+	fman_name=$(echo "$fman_all" | head -1)
+	fman_bid=$(echo "$fman_all" | tail -n +2)
+	if ! [[ $fman_name ]] || ! [[ $fman_bid ]] ; then
+		fmaninit=true
+		echo "⚠️  WARNING: improper file manager config information"
+		rm -f "$fman" 2>/dev/null
+	else
+		fmapploc=$(mdfind \
+			-onlyin /Applications/ \
+			-onlyin "$HOME"/Applications/ \
+			-onlyin "$HOME"/Developer/Applications/ \
+			-onlyin /Developer/Applications/ \
+			-onlyin /Network/Applications/ \
+			-onlyin /Network/Developer/Applications/ \
+			"kMDItemCFBundleIdentifier == \"$fman_bid\"" 2>/dev/null | LC_COLLATE=C sort | head -1)
+		if ! [[ $fmapploc ]] ; then
+			fmaninit=true
+			echo "⚠️  WARNING: '$fman_name' not installed – defaulting to Finder (com.apple.finder)"
+			rm -f "$fman" 2>/dev/null
+			
+		else
+			fman_name=$(defaults read "$fmapploc/Contents/Info.plist" CFBundleName 2>/dev/null)
+			if ! [[ $fman_name ]] ; then
+				fmaninit=true
+				echo "⚠️  WARNING: CFBundleName for '$fman_bid' not available – defaulting to Finder (com.apple.finder)"
+				rm -f "$fman" 2>/dev/null
+			else
+				echo "✅  File manager: $fman_name ($fman_bid)"
+			fi
+		fi
+	fi
+fi
+if $fmaninit ; then
+	echo "ℹ️  INFO: default file manager not (yet) saved"
+	filemanager=$(defaults read -g NSFileViewer 2>/dev/null)
+	if ! [[ $filemanager ]] ; then
+		filemanager="com.apple.finder"
+		echo "ℹ️  INFO: system's default file manager not set by user"
+		fman_name="Finder"
+		echo "ℹ️  INFO: defaulting to 'Finder' (com.apple.finder)"
+	else
+		echo "ℹ️  INFO: '$filemanager' set by user as system's default file manager"
+		if [[ $filemanager == "com.apple.finder" ]] || [[ $filemanager == "com.apple.Finder" ]] ; then
+			fman_name="Finder"
+		else
+			fmapploc=$(mdfind \
+				-onlyin /Applications/ \
+				-onlyin "$HOME"/Applications/ \
+				-onlyin "$HOME"/Developer/Applications/ \
+				-onlyin /Developer/Applications/ \
+				-onlyin /Network/Applications/ \
+				-onlyin /Network/Developer/Applications/ \
+				"kMDItemCFBundleIdentifier == \"$filemanager\"" 2>/dev/null | LC_COLLATE=C sort | head -1)
+			if ! [[ $fmapploc ]] ; then
+				echo "⚠️  WARNING: '$filemanager' not installed – defaulting to Finder (com.apple.finder)"
+				fman_name="Finder"
+				filemanager="com.apple.finder"
+			else
+				fman_name=$(defaults read "$fmapploc/Contents/Info.plist" CFBundleName 2>/dev/null)
+				if ! [[ $fman_name ]] ; then
+					echo "⚠️  WARNING: CFBundleName for '$filemanager' not available – defaulting to Finder (com.apple.finder)"
+					fman_name="Finder"
+					filemanager="com.apple.finder"
+				fi
+			fi
+		fi
+		echo "ℹ️  INFO - CFBundleName: '$fman_name'"
+	fi
+	if echo -ne "$fman_name\n$filemanager" > "$fman" &>/dev/null ; then
+		echo "✅  Saved file manager info to: $fman"
+		echo "ℹ️  File manager: $fman_name ($filemanager)"
+	else
+		echo "❌  ERROR saving file manager info to: $fman"
+		errors=true
+	fi
+fi
+
+echo "Done."
+if $errors ; then
+	exit 1
+else
+	exit 0
+fi

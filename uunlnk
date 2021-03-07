@@ -1,0 +1,296 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# uunlnk
+# v0.9
+# macOS
+#
+# Toggle Protection - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: CMD-OPTION-CTRL-K
+#
+# toggle uulnk-style anti-removal file protection (incl. user tag "Protected")
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
+
+! [[ $* ]] && exit
+
+uiprocess="Toggle Protection"
+account=$(id -u)
+xaprocess="uunlnk-cli"
+usertag="Protected"
+xastr="local.lcars.fpsr#PS"
+
+read -d '' xmltag1 <<"EOF"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+EOF
+read -d '' xmltag2 <<"EOF"
+<string>Protected</string>
+EOF
+read -d '' xmltag3 <<"EOF"
+</array>
+</plist>
+EOF
+
+_beep () {
+	osascript -e 'beep' -e 'delay 0.5' &>/dev/null
+}
+
+_notify () {
+	osascript &>/dev/null << EOT
+tell application "System Events"
+	display notification "$2" with title "$uiprocess [" & "$account" & "]" subtitle "$1"
+end tell
+EOT
+}
+
+_readtag () {
+	readpath="$1"
+	xaxml=""
+	xaxml=$(xattr -pxs com.apple.metadata:_kMDItemUserTags "$readpath" 2>/dev/null | xxd -r -p | plutil -convert xml1 - -o -)
+	if echo "$xaxml" | grep -q "No value\.$" &>/dev/null || echo "$xaxml" | grep -q "^<stdin>:" &>/dev/null ; then
+		echo -n ""
+	else
+		echo -n "$xaxml"
+	fi
+}
+
+_tagger () {
+	tagged=false
+	root=false
+	if [[ $1 == "root" ]] ; then
+		root=true
+		shift
+	fi
+	untag=false
+	if [[ $1 == "untag" ]] ; then
+		shift
+		tagpath="$1"
+		untag=true
+	else
+		tagpath="$1"
+	fi
+	alltags=$(_readtag "$tagpath")
+	if ! [[ $alltags ]] ; then # no user tags
+		if ! $untag ; then # direct tag
+			xmltag=$(echo -e "$xmltag1\n\t$xmltag2\n$xmltag3" | grep -v "^$")
+			binarytag=$(echo -e "$xmltag" | plutil -convert binary1 - -o - | xxd -p -c 256 -u)
+			if ! $root ; then
+				xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
+			else
+				echo -n "$password" | sudo -S xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
+			fi
+			alltags=$(_readtag "$tagpath")
+			tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
+			echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
+		else # untagging not necessary
+			echo -n "ok"
+		fi
+	else # user tags exist
+		tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
+		echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && tagged=true
+		if ! $untag ; then # add user tag
+			if $tagged ; then # already tagged: tagging not necessary
+				echo -n "ok"
+			else # add user tag to existing tags
+				xmltag=$(echo -e "$xmltag1\n$tagstrings\n$xmltag2\n$xmltag3" | grep -v "^$" | sed 's/^<string>/\\t<string>/g')
+				binarytag=$(echo -e "$xmltag" | plutil -convert binary1 - -o - | xxd -p -c 256 -u)
+				if ! $root ; then
+					xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
+				else
+					echo -n "$password" | sudo -S xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
+				fi
+				alltags=$(_readtag "$tagpath")
+				tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
+				echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
+			fi
+		else # remove user tag
+			if ! $tagged ; then # no tag: untagging not necessary
+				echo -n "ok"
+			else # remove user tag from existing tags
+				alltags=$(echo -e "$alltags" | grep -v "<string>Protected</string>")
+				allstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
+				if ! [[ $allstrings ]] ; then # "Protected" was the only tag: direct XA removal
+					if ! $root ; then
+						xattr -ds com.apple.metadata:_kMDItemUserTags "$tagpath" &>/dev/null
+					else
+						echo -n "$password" | sudo -S xattr -d com.apple.metadata:_kMDItemUserTags "$tagpath" &>/dev/null
+					fi
+					alltags=$(_readtag "$tagpath")
+					tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
+					! echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
+				else # more tags than just "Protected"
+					xmltag=$(echo -e "$xmltag1\n$allstrings\n$xmltag3" | grep -v "^$" | sed 's/^<string>/\\t<string>/g')
+					binarytag=$(echo -e "$xmltag" | plutil -convert binary1 - -o - | xxd -p -c 256 -u)
+					if ! $root ; then
+						xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" &>/dev/null
+					else
+						echo -n "$password" | sudo -S xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" &>/dev/null
+					fi
+					alltags=$(_readtag "$tagpath")
+					tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
+					! echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
+				fi
+			fi
+		fi
+	fi
+}
+
+errors=false
+errorcount=0
+rootlist=""
+for filepath in "$@"
+do
+	filename=$(basename "$filepath")
+	if ! xattr -p "$xastr" "$filepath" &>/dev/null ; then
+		posixdate=$(date +%s)
+		xakey="uunlnk;$posixdate;$xaprocess"
+		if xattr -ws "$xastr" "$xakey" "$filepath" 2>/dev/null ; then
+			tagresult=$(_tagger "$filepath")
+			if [[ $tagresult == "ok" ]] ; then
+				_notify "🔒 🏷 File protected & tagged" "$filename"
+			else
+				_notify "🔒 File protected without tag" "$filename"
+			fi
+		else
+			errors=true
+			((errorcount++))
+			_notify "⚠️ Protection failed" "$filename"
+			rootlist="$rootlist\nuunlnk:$filepath"
+		fi
+	else
+		if xattr -ds "$xastr" "$filepath" 2>/dev/null ; then
+			tagresult=$(_tagger untag "$filepath")
+			if [[ $tagresult == "ok" ]] ; then
+				_notify "🆓 File liberated" "$filename"
+			else
+				_notify "🆓 🏷 File liberated (still tagged)" "$filename"
+			fi
+		else
+			errors=true
+			((errorcount++))
+			_notify "⚠️ File still protected" "$filename"
+			rootlist="$rootlist\nnouunlnk:$filepath"
+		fi
+	fi
+done
+
+! $errors && exit
+
+_beep &
+if [[ $errorcount -gt 1 ]] ; then
+	fstr1="$errorcount files"
+	fstr2="files"
+else
+	fstr1="One file"
+	fstr2="file"
+fi
+icon_loc="/System/Library/PreferencePanes/Security.prefPane/Contents/Resources/SystemPreferences_Security.tiff"
+password=$(osascript 2>/dev/null << EOR
+tell application "System Events"
+	activate
+	set theIconPath to POSIX file "$icon_loc"
+	repeat
+		display dialog "$fstr1 could not be processed, probably due to missing write permissions." & return & return & "Please enter your administrator password to try and process the remaining $fstr2." ¬
+			with icon file theIconPath ¬
+			default answer "" ¬
+			with title "Toggle Protection" ¬
+			with hidden answer ¬
+			buttons {"Cancel", "Enter"} ¬
+			default button 2
+		if button returned of the result is "Cancel" then
+			return 1
+			exit repeat
+		else if the button returned of the result is "Enter" then
+			set pswd to text returned of the result
+			set usr to short user name of (system info)
+			try
+				do shell script "echo test" user name usr password pswd with administrator privileges
+				return pswd
+				exit repeat
+			end try
+		end if
+		end repeat
+end tell
+EOR
+)
+if [[ $password == 1 ]] ; then
+	exit
+fi
+
+fcount=0
+scount=0
+errors=false
+while read -r rootline
+do
+	method=$(echo "$rootline" | awk -F":" '{print $1}')
+	rootpath=$(echo "$rootline" | awk -F":" '{print substr($0, index($0,$2))}')
+	rootname=$(basename "$rootpath")
+	if [[ $method == "uunlnk" ]] ; then
+		posixdate=$(date +%s)
+		xakey="uunlnk;$posixdate;$xaprocess"
+		echo -n "$password" | sudo -S xattr -ws "$xastr" "$xakey" "$rootpath" 2>/dev/null
+		if [[ $? == 1 ]] ; then
+			_notify "⚠️ Protection failed!" "$rootname"
+			((fcount++))
+			errors=true
+		else
+			((scount++))
+			tagresult=$(_tagger root "$filepath")			
+			if [[ $tagresult == "ok" ]] ; then
+				_notify "🔒 🏷 File protected & tagged" "$filename"
+			else
+				_notify "🔒 File protected without tag" "$filename"
+			fi
+		fi
+	elif [[ $method == "nouunlnk" ]] ; then
+		echo -n "$password" | sudo -S xattr -ds "$xastr" "$rootpath" 2>/dev/null
+		if [[ $? == 1 ]] ; then
+			_notify "⚠️ File still protected!" "$rootname"
+			((fcount++))
+			errors=true
+		else
+			((scount++))
+			tagresult=$(_tagger root untag "$filepath")			
+			if [[ $tagresult == "ok" ]] ; then
+				_notify "🆓 File liberated" "$filename"
+			else
+				_notify "🆓 🏷 File liberated (still tagged)" "$filename"
+			fi
+		fi
+	fi
+done < <(echo -e "$rootlist" | grep -v "^$")
+
+if $errors ; then
+	_beep &
+	if [[ $scount -eq 0 ]] ; then
+		if [[ $fcount -eq 1 ]] ; then
+			fstr="file"
+		else
+			fstr="files"
+		fi
+		_beep &
+		_notify "⚠️ Protection error!" "$fcount $fstr remain protected"
+	else
+		if [[ $fcount -eq 1 ]] ; then
+			fstr="file"
+		else
+			fstr="files"
+		fi
+		if [[ $scount -eq 1 ]] ; then
+			sstr="file"
+		else
+			sstr="files"
+		fi
+		_beep &
+		_notify "☑️ $scount $sstr protected" "$fcount $fstr remain unprotected"
+	fi
+fi
+
+exit 0

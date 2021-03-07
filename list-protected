@@ -1,0 +1,109 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# list-protected
+# v0.9
+# macOS
+#
+# List Protected Files - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: - (command-line only)
+#
+# list all currently protected files on all volumes with indexing enabled
+#
+# examples:
+# 
+# (1) raw mdfind list (filepaths of protected files)
+# list-protected
+#
+# (2) list protected files with extended attribute prefixed
+# list-protected -v
+# 
+# (3) sort protected files (most recent first)
+# list-protected -v 2>/dev/null | sort -n -t ';' -r -k2
+#
+# (4) sort protected files (most recent first, filenames only & sorted)
+# list-protected -v 2>/dev/null | sort -n -t ';' -r -k2 | awk -F":" '{print substr($0, index($0,$2))}' | sort
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
+
+usertag="Protected"
+xastr="local.lcars.fpsr#PS"
+
+_protectlist () {
+	if ! [[ $protectlist ]] ; then
+		if ! mdutil -s "$volume" | grep -q "Indexing enabled" &>/dev/null ; then
+			echo "mdutil: indexing not enabled" >&2
+		else
+			echo "-" >&2
+		fi
+	else
+		if ! $verbose ; then
+			echo "$protectlist"
+		else
+			while read -r protectpath
+			do
+				protxa=$(xattr -ps "$xastr" "$protectpath" 2>/dev/null)
+				! [[ $protxa ]] && protxa="-"
+				echo "$protxa:$protectpath"
+			done < <(echo "$protectlist")
+		fi
+	fi
+}
+
+verbose=false
+if [[ $1 =~ ^(-v|--verbose)$ ]] ; then
+	verbose=true
+	shift
+fi
+if ! [[ $* ]] ; then
+	allvols=$(df | tail -n +2 | grep -v -e "/$" -e "/dev$" -e "/home$" -e "/System/Volumes/" | awk '{print substr($0, index($0,$9))}')
+	echo -e "--------\nAccessing: /" >&2
+	protectlist=$(mdfind -onlyin / "kMDItemUserTags == $usertag" 2>/dev/null)
+	_protectlist
+	if [[ $allvols ]] ; then
+		while read -r volume
+		do
+			echo -e "--------\nAccessing: $volume" >&2
+			volume=$(echo "$volume/" | sed 's-//$-/-')
+			protectlist=$(mdfind -onlyin "$volume" "kMDItemUserTags == $usertag" 2>/dev/null)
+			_protectlist
+		done < <(echo "$allvols")
+	fi
+else
+	for filepath in "$@"
+	do
+		! [[ -e "$filepath" ]] && continue
+		if ! [[ -d "$filepath" ]] ; then
+			echo "--------" >&2
+			protxa=$(xattr -ps "$xastr" "$filepath" 2>/dev/null)
+			if [[ $protxa ]] ; then
+				if $verbose ; then
+					echo "$protxa:$filepath"
+				else
+					echo "$filepath"
+				fi
+			else
+				echo "-:-" >&2
+			fi
+		else
+			echo -e "--------\nAccessing: $filepath" >&2
+			protxa=$(xattr -ps "$xastr" "$filepath" 2>/dev/null)
+			if [[ $protxa ]] ; then
+				if $verbose ; then
+					echo "$protxa:$filepath"
+				else
+					echo "$filepath"
+				fi
+			fi
+			filepath=$(echo "$filepath/" | sed 's-//$-/-')
+			protectlist=$(mdfind -onlyin "$filepath" "kMDItemUserTags == $usertag" 2>/dev/null)
+			[[ $protectlist ]] && _protectlist
+		fi
+	done
+fi
+echo "--------" >&2
+exit

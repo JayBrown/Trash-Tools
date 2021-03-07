@@ -1,0 +1,158 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# trashes
+# v0.9
+# macOS
+#
+# requisite: trash - https://github.com/sindresorhus/macos-trash
+#
+# Trashes - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: CMD-DEL
+#
+# move files to their relevant trash
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
+
+uiprocess="Trashes"
+account=$(id -u)
+trashxa="local.lcars.fpsr.loc#PS"
+
+tempdir="$HOME/.cache/Finder"
+configdir="$HOME/.config/TrashTools"
+protectlist="$configdir/protections.txt"
+tmploc="/tmp/local.lcars.TrashTools.trashes"
+
+icloud="$HOME/Library/Mobile Documents/com~apple~CloudDocs/"
+
+_beep () {
+	osascript -e 'beep' -e 'delay 0.5' &>/dev/null
+}
+
+_notify () {
+	osascript &>/dev/null << EOT
+tell application "System Events"
+	display notification "$2" with title "$uiprocess [" & "$account" & "]" subtitle "$1"
+end tell
+EOT
+}
+
+errors=false
+warnings=false
+recents=""
+rootlist=""
+errorcount=0
+for filepath in "$@"
+do
+	filename=$(basename "$filepath")
+	if xattr -p "local.lcars.fpsr#PS" "$filepath" &>/dev/null ; then
+		_beep &
+		_notify "🔒 File is protected!" "uunlnk: $filename"
+		continue
+	fi
+	if grep -q "^$filename$" "$protectlist" &>/dev/null ; then
+		_beep &
+		_notify "🔏 File is protected!" "config: $filename"
+		continue
+	fi
+	
+	if [[ $filepath != "$icloud"* ]] ; then
+		fpathvol=$(df "$filepath" | tail -n +2 | awk '{print substr($0, index($0,$9))}')
+		if [[ $fpathvol == "/System/Volumes/Data" ]] || ! [[ $fpathvol ]] ; then
+			xapath=$(echo "$filepath" | sed 's:^/::')
+		else
+			xapath=$(echo "$filepath" | sed "s:^$fpathvol/::")
+		fi
+	else
+		xapath=$(echo "$filepath" | sed "s:^$icloud::")
+	fi
+	xattr -ws "$trashxa" "$xapath" "$filepath" 2>/dev/null
+	trash_out=$(trash "$filepath" 2>&1)
+	if ! [[ $trash_out ]] ; then
+		recents="$recents\n$filename"
+		continue
+	fi
+	if [[ $trash_out == *"don’t have permission to access it." ]] ; then
+		errors=true
+		_notify "⚠️ Could not move to Trash" "Permissions: $filename"
+		rootlist="$rootlist\n$filepath"
+		((errorcount++))
+	elif [[ $trash_out == *"doesn’t have one." ]] ; then
+		warnings=true
+		cvolume=$(df "$filepath" | tail -n +2 | awk '{print substr($0, index($0,$9))}')
+		_notify "🗑 Volume has no Trash" "$cvolume: $filename"
+		xattr -ds "$trashxa" "$filepath" 2>/dev/null
+	else
+		warnings=true
+		_notify "❓ Unsupported error" "$filename: $trash_out"
+		xattr -ds "$trashxa" "$filepath" 2>/dev/null
+	fi
+done
+if ! $errors ; then
+	$warnings && _beep &
+	echo -e "$recents" | grep -v "^$" > "$tmploc"
+	exit
+fi
+
+rootlist=$(echo "$rootlist" | grep -v "^$")
+
+rmblock=false
+flaunch=false
+if ! pgrep -x "Finder" &>/dev/null ; then
+	open -b com.apple.finder
+	flaunch=true
+	touch "$tempdir/manual"
+	rmblock=true
+else
+	if ! [[ -e "$tempdir/manual" ]] ; then
+		touch "$tempdir/manual"
+		rmblock=true
+	fi
+fi
+
+osascript 2>/dev/null << EOR
+set theFiles to the paragraphs of "$rootlist"
+repeat with aFile in theFiles
+	set aFile's contents to (POSIX file aFile) as Unicode text
+end repeat
+theFiles
+tell application "Finder"
+	activate
+	move theFiles to the trash
+end tell
+EOR
+
+$flaunch && osascript -e 'tell application "Finder" to quit' 2>/dev/null
+$rmblock && rm -f "$tempdir/manual" 2>/dev/null
+
+remaincount=0
+while read -r rmpath
+do
+	if $flaunch ; then
+		parentdir=$(dirname "$rmpath")
+		rm -f "$parentdir/.DS_Store" 2>/dev/null
+	fi
+	if [[ -e "$rmpath" ]] ; then
+		xattr -ds "$trashxa" "$rmpath" 2>/dev/null
+		((remaincount++))
+	else
+		rmname=$(basename "$rmpath")
+		recents="$recents\n$rmname"
+	fi
+done < <(echo "$rootlist")
+if [[ $remaincount -ge 1 ]] ; then
+	_beep &
+	if [[ $remaincount -eq 1 ]] ; then
+		_notify "⚠️ Permission errors" "1 file remaining"
+	else
+		_notify "⚠️ Permission errors" "$remaincount files remaining"
+	fi
+fi
+
+echo -e "$recents" | grep -v "^$" > "$tmploc"
+
+exit

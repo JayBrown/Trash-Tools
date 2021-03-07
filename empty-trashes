@@ -1,0 +1,171 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# empty-trashes
+# v0.9
+# macOS
+#
+# Empty Trashes - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: CMD-SHIFT-DEL | CMD-OPT-SHIFT-DEL (force)
+#
+# (force) empty all trashes: user trash, data volume trash & trashes on mounted volumes
+
+force=false
+if [[ $1 == "--force" ]] ; then
+	force=true
+	shift
+fi
+
+uiprocess="Empty Trashes"
+account=$(id -u)
+
+tempdir="$HOME/.cache/Finder"
+configdir="$HOME/.config/TrashTools"
+undoloc="/tmp/local.lcars.TrashTools.trashes"
+fman="$configdir/file_manager.txt"
+fman_name=$(head -1 < "$fman" 2>/dev/null)
+! [[ $fman_name ]] && fman_name="Finder"
+
+_beep () {
+	osascript -e 'beep' -e 'delay 0.5' &>/dev/null
+}
+
+_notify () {
+	osascript &>/dev/null << EOT
+tell application "System Events"
+	display notification "$2" with title "$uiprocess [" & "$account" & "]" subtitle "$1"
+end tell
+EOT
+}
+
+_all-volumes () {
+	othervols=$(df | tail -n +2 | grep -v -e "/$" -e "/dev$" -e "/home$" -e "/System/Volumes/" | awk '{print substr($0, index($0,$9))}')
+	echo -e "$HOME/Library/Mobile Documents/com~apple~CloudDocs\n$othervols\n/System/Volumes/Data"
+}
+
+_totalsize () {
+	usersize=$(osascript -e 'set theTrashSize to size of (info for (path to trash folder))' 2>/dev/null)
+	othersize=0
+	vol_list=$(_all-volumes | grep -v "^$")
+	if [[ $vol_list ]] ; then
+		while read -r volume
+		do
+			if ! [[ -w "$volume" ]] ; then
+				sizeadd=0
+			else
+				trashesloc="$volume/.Trash"
+				if ! [[ -d "$trashesloc" ]] ; then
+					trashesloc="$volume/.Trashes/$account"
+				fi
+				if [[ -d "$trashesloc" ]] ; then
+					sizeadd=$(osascript 2>/dev/null << EOS
+set theTrashPath to "$trashesloc"
+try
+	set theTrashAlias to (POSIX file theTrashPath) as alias
+	tell application "System Events"
+		set theTrashSize to size of theTrashAlias
+	end tell
+	return theTrashSize
+on error
+	return 0
+end try
+EOS
+					)
+					if ! [[ $sizeadd ]] || [[ $sizeadd == "false" ]] || [[ $sizeadd == "missing value" ]] ; then
+						sizeadd=0
+					fi
+				else
+					sizeadd=0
+				fi
+			fi
+			othersize=$((othersize+sizeadd))
+		done < <(echo "$vol_list")
+	fi
+	finalsize=$((usersize+othersize))
+	echo -n "$finalsize"
+}
+
+_round () {
+	echo $(printf %.$2f $(echo "scale=$2;(((10^$2)*$1)+0.5)/(10^$2)" | bc))
+}
+
+
+_bhr () {
+	bytes="$1"
+    mib_raw=$(bc -l <<< "scale=6; $bytes/1048576")
+	mibytes=$(_round "$mib_raw" 2)
+	[[ $mibytes == "0.00" ]] && mibytes="< 0.01"
+	echo "$mibytes MiB ($bytes B)"
+}
+
+_rm-dsstore () {
+	rm -f "$HOME/.Trash/.DS_Store" 2>/dev/null
+	vol_list=$(_all-volumes | grep -v "^$")
+	if [[ $vol_list ]] ; then
+		while read -r volume
+		do
+			rm -f "$volume/.Trashes/$account/.DS_Store" 2>/dev/null
+		done < <(echo "$vol_list")
+	fi
+}
+
+rmblock=false
+flaunch=false
+trashes_size1=$(_totalsize | sed 's/\.$//')
+trashes_hrsize1=$(_bhr "$trashes_size1" 2>/dev/null)
+
+if [[ $trashes_size1 -gt 0 ]] ; then
+	if ! $force ; then
+		choice=$(osascript 2>/dev/null << EOG
+tell application "$fman_name"
+	set theButton to button returned of (display alert ¬
+		"Do you really want to empty all of your system's Trashes?" ¬
+		buttons {"Cancel", "Empty Trashes"} ¬
+		as informational ¬
+		message "Your Trashes (including the iCloud Trash) currently occupy a total of:" & return & return & "$trashes_hrsize1" ¬
+		cancel button 1 ¬
+		default button 2 ¬
+		giving up after 180)
+end tell
+EOG
+		)
+		if [[ $choice != "Empty Trashes" ]] ; then
+			exit
+		fi
+	fi
+	if ! pgrep -x "Finder" &>/dev/null ; then
+		open -j -g -b com.apple.finder && sleep 0.5
+		flaunch=true
+		touch "$tempdir/manual"
+		rmblock=true
+	else
+		if ! [[ -e "$tempdir/manual" ]] ; then
+			touch "$tempdir/manual"
+			rmblock=true
+		fi
+	fi
+	osascript -e 'tell application "Finder"' -e 'empty trash' -e 'end tell' -e 'delay 0.5' 2>/dev/null
+	trashes_size2=$(_totalsize | sed 's/\.$//')
+	if [[ $trashes_size2 -gt 0 ]] ; then
+		trashes_hrsize2=$(_bhr "$trashes_size2" 2>/dev/null)
+		touch "$tempdir/manual"
+		_beep &
+		_notify "⚠️ Trash not emptied" "$trashes_hrsize2 remaining"
+		osascript -e 'tell application Finder to open trash' 2>/dev/null
+	else
+		# _notify "✅ Trash emptied" "$trashes_hrsize1 removed"
+		$flaunch && osascript -e 'tell application "Finder" to quit' 2>/dev/null
+		$rmblock && rm -f "$tempdir/manual" 2>/dev/null
+		rm -f "$undoloc" 2>/dev/null
+		_rm-dsstore
+	fi
+else
+	_notify "ℹ️ Trashes are empty"
+	_rm-dsstore
+	rm -f "$undoloc" 2>/dev/null
+fi
+
+exit

@@ -1,0 +1,212 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# unlink
+# v0.9
+# macOS
+#
+# Unlink - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: CMD-OPT-DEL
+#
+# permanently remove (unlink) files
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
+
+uiprocess="Unlink"
+account=$(id -u)
+
+configdir="$HOME/.config/TrashTools"
+protectlist="$configdir/protections.txt"
+fman="$configdir/file_manager.txt"
+fman_name=$(head -1 < "$fman" 2>/dev/null)
+! [[ $fman_name ]] && fman_name="Finder"
+
+_beep () {
+	osascript -e 'beep' -e 'delay 0.5' &>/dev/null
+}
+
+_notify () {
+	osascript &>/dev/null << EOT
+tell application "System Events"
+	display notification "$2" with title "$uiprocess [" & "$account" & "]" subtitle "$1"
+end tell
+EOT
+}
+
+rmlist=""
+rmcount=0
+for filepath in "$@"
+do
+	filename=$(basename "$filepath")
+	if xattr -p "local.lcars.fpsr#PS" "$filepath" &>/dev/null ; then
+		_beep &
+		_notify "🔒 File is protected!" "uunlnk: $filename"
+		continue
+	fi
+	if grep -q "^$filename$" "$protectlist" &>/dev/null ; then
+		_beep &
+		_notify "🔏 File is protected!" "config: $filename"
+		continue
+	fi
+	if ! [[ -e "$filepath" ]] ; then
+		_beep &
+		_notify "❌ File missing or inaccessible!" "$filename"
+		continue
+	fi
+	rmlist="$rmlist\n$filepath"
+	((rmcount++))
+done
+
+if [[ $rmcount -eq 0 ]] ; then
+	exit
+fi
+rmlist=$(echo -e "$rmlist" | grep -v "^$")
+if [[ $rmcount -gt 1 ]] ; then
+	fstr="files"
+	rmnamelist=$(echo "$rmlist" | awk -F"/" '{print $NF}')
+else
+	fstr="file"
+	rmnamelist=$(basename "$rmlist")
+fi
+
+choice=$(osascript 2>/dev/null << EOG
+tell application "$fman_name"
+	set theButton to button returned of (display alert ¬
+		"Do you really want to permanently delete the following $fstr?" ¬
+		buttons {"Cancel", "Permanently Delete"} ¬
+		as warning ¬
+		message "$rmnamelist" ¬
+		cancel button 1 ¬
+		default button 2 ¬
+		giving up after 180)
+end tell
+EOG
+)
+if [[ $choice != "Permanently Delete" ]] ; then
+	exit
+fi
+
+errors=false
+errorcount=0
+rootlist=""
+while read -r rmpath
+do
+	rmname=$(basename "$rmpath")
+	if ! rm -rf "$rmpath" &>/dev/null ; then
+		errors=true
+		if ! [[ -w "$rmpath" ]] ; then
+			_notify "⚠️ File could not be removed!" "Not writable: $rmname"
+		else
+			_notify "⚠️ File could not be removed!" "$rmname"
+		fi
+		rootlist="$rootlist\n$rmpath"
+		((errorcount++))
+	fi
+done < <(echo "$rmlist")
+! $errors && exit
+
+_beep &
+rootlist=$(echo -e "$rootlist" | grep -v "^$")
+if [[ $errorcount -gt 1 ]] ; then
+	fstr="files"
+	rootnamelist=$(echo "$rootlist" | awk -F"/" '{print $NF}')
+else
+	fstr="file"
+	rootnamelist=$(basename "$rootlist")
+fi
+choice=$(osascript 2>/dev/null << EOA
+tell application "$fman_name"
+	set theButton to button returned of (display alert ¬
+		"Some files could not be removed." & return & return & "Do you want to continue and permanently delete the following $fstr with root privileges?" ¬
+		buttons {"Cancel", "Permanently Delete"} ¬
+		as warning ¬
+		message "$rootnamelist" ¬
+		cancel button 1 ¬
+		default button 1 ¬
+		giving up after 180)
+end tell
+EOA
+)
+if [[ $choice != "Permanently Delete" ]] ; then
+	exit
+fi
+
+icon_loc="/System/Library/PreferencePanes/Security.prefPane/Contents/Resources/SystemPreferences_Security.tiff"
+password=$(osascript 2>/dev/null << EOR
+tell application "System Events"
+	activate
+	set theIconPath to POSIX file "$icon_loc"
+	repeat
+		display dialog "To start the file removal, you need to enter your administrator password." ¬
+			with icon file theIconPath ¬
+			default answer "" ¬
+			with title "Unlink" ¬
+			with hidden answer ¬
+			buttons {"Cancel", "Enter"} ¬
+			default button 2
+		if button returned of the result is "Cancel" then
+			return 1
+			exit repeat
+		else if the button returned of the result is "Enter" then
+			set pswd to text returned of the result
+			set usr to short user name of (system info)
+			try
+				do shell script "echo test" user name usr password pswd with administrator privileges
+				return pswd
+				exit repeat
+			end try
+		end if
+		end repeat
+end tell
+EOR
+)
+if [[ $password == 1 ]] ; then
+	exit
+fi
+
+fcount=0
+scount=0
+errors=false
+while read -r rootfile
+do
+	echo -n "$password" | sudo -S rm -rf "$rootfile" 2>/dev/null
+	if [[ $? == 1 ]] ; then
+		rootname=$(basename "$rootfile")
+		_notify "⚠️ Removal error!" "$rootname"
+		((fcount++))
+		errors=true
+	else
+		((scount++))
+	fi
+done < <(echo "$rootlist")
+if $errors ; then
+	_beep &
+	if [[ $scount -eq 0 ]] ; then
+		if [[ $fcount -eq 1 ]] ; then
+			fstr="file"
+		else
+			fstr="files"
+		fi
+		_beep &
+		_notify "⚠️ Removal error!" "$fcount $fstr remaining"
+	else
+		if [[ $fcount -eq 1 ]] ; then
+			fstr="file"
+		else
+			fstr="files"
+		fi
+		if [[ $scount -eq 1 ]] ; then
+			sstr="file"
+		else
+			sstr="files"
+		fi
+		_beep &
+		_notify "☑️ $scount $sstr removed" "$fcount $fstr remaining"
+	fi
+fi
+
+exit 0
