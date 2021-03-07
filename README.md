@@ -44,6 +44,8 @@ Most users will probably have no need for such a solution, because the normal us
 ### `uunlnk`
 Toggle file protection by writing the extended attribute `local.lcars.fpsr#PS`. Additionally, a user tag called "Protected" will be added, so you can quickly list all your protected files with Spotlight or `mdfind` and `list-protected`.
 
+Note: `.DS_Store` files cannot be protected.
+
 ### `list-protected`
 List currently protected files on all volumes or in specified paths (only possible with indexing enabled). Examples:
 
@@ -59,6 +61,8 @@ Move files to the relevant Trash, including iCloud Trash. On volumes without `.T
 
 Note: using the system API or the Finder (for files without write access) instead of simple `mv` routines is important, because the system's move-to-Trash functionality is needed to properly remove certain filetypes, e.g. for an effective uninstallation of applications containing system or network extensions.
 
+Note: `trashes` will delete `.DS_Store` files immediately.
+
 ### `empty-trashes`
 Empty all Trashes. Use the `--force` argument with an alternate keyboard shortcut, if you want to skip the prompt. The command supports all Trashes, including iCloud Trash, `/System/Volumes/.Trashes/$UID/` and `./Trashes/$UID/` on any mounted & writable volume.
 
@@ -69,6 +73,8 @@ Note: for the same reasons as stated above, `empty-trashes` will still use the F
 
 ### `unlink`
 Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution! And, of course, protect important files using the Trash Tools. 😉
+
+Note: `unlink` will delete `.DS_Store` files immediately.
 
 ## Uninstall Trash Tools
 * delete the repository and all copies or symbolic links of the following CLIs: `tt-setup` `uunlnk` `list-protected` `trashes` `empty-trashes` `undo-trashes` `unlink`

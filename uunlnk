@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # uunlnk
-# v0.9
+# v0.9.1
 # macOS
 #
 # Toggle Protection - part of Trash Tools
@@ -148,6 +148,16 @@ rootlist=""
 for filepath in "$@"
 do
 	filename=$(basename "$filepath")
+	if [[ $filename == ".DS_Store" ]] ; then
+		_beep &
+		_notify "⚠️ Protection error" ".DS_Store files cannot be protected"
+		continue
+	fi
+	if [[ $filepath == *"/.Trash/$filename" ]] || [[ $filepath == *"/.Trashes/$filename" ]] ; then
+		_beep
+		_notify "⚠️ Protection error" "Trashed files cannot be protected"
+		continue
+	fi
 	if ! xattr -p "$xastr" "$filepath" &>/dev/null ; then
 		posixdate=$(date +%s)
 		xakey="uunlnk;$posixdate;$xaprocess"

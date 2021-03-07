@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # unlink
-# v0.9
+# v0.9.1
 # macOS
 #
 # Unlink - part of Trash Tools
@@ -56,6 +56,11 @@ do
 		_beep &
 		_notify "❌ File missing or inaccessible!" "$filename"
 		continue
+	fi
+	if [[ $filename == ".DS_Store" ]] ; then
+		if rm -f "$filepath" &>/dev/null ; then
+			continue
+		fi
 	fi
 	rmlist="$rmlist\n$filepath"
 	((rmcount++))

@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # trashes
-# v0.9
+# v0.9.1
 # macOS
 #
 # requisite: trash - https://github.com/sindresorhus/macos-trash
@@ -59,7 +59,16 @@ do
 		_notify "🔏 File is protected!" "config: $filename"
 		continue
 	fi
-	
+	if [[ $filepath == *"/.Trash/$filename" ]] || [[ $filepath == *"/.Trashes/$filename" ]] ; then
+		_beep &
+		_notify "🗑 File already in Trash!" "$filename"
+		continue
+	fi
+	if [[ $filename == ".DS_Store" ]] ; then
+		if rm -f "$filepath" &>/dev/null ; then
+			continue
+		fi
+	fi
 	if [[ $filepath != "$icloud"* ]] ; then
 		fpathvol=$(df "$filepath" | tail -n +2 | awk '{print substr($0, index($0,$9))}')
 		if [[ $fpathvol == "/System/Volumes/Data" ]] || ! [[ $fpathvol ]] ; then
