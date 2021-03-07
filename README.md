@@ -44,7 +44,7 @@ Most users will probably have no need for such a solution, because the normal us
 ### `uunlnk`
 Toggle file protection by writing the extended attribute `local.lcars.fpsr#PS`. Additionally, a user tag called "Protected" will be added, so you can quickly list all your protected files with Spotlight or `mdfind` and `list-protected`.
 
-Note: `.DS_Store` files already trashed files cannot be protected.
+Note: `.DS_Store` files and already trashed files cannot be protected.
 
 ### `list-protected`
 List currently protected files on all volumes or in specified paths (only possible with indexing enabled). Examples:
