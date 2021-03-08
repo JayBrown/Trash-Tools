@@ -60,11 +60,11 @@ List currently protected files on all volumes or in specified paths (only possib
 ### `trashes`
 Move files to the relevant Trash, including iCloud Trash. On volumes without `.Trash` or `.Trashes`, the underlying requisite `trash` CLI will automatically create the necessary Trash directory; if those volumes do not support the macOS Trash system, you will need to use the `unlink` command instead. Files without write access will be handled by macOS Finder; writable files will be deleted by the `trash` CLI, which uses the regular system API.
 
+When using `trashes` on trashed files, the script will call the dependent `put-back` helper (*see below*) that will call Finder to move the selected files back to their original path (if possible).
+
 Note: using the system API or the Finder (for files without write access) instead of simple `mv` routines is important, because the system's move-to-Trash functionality is needed to properly remove certain filetypes, e.g. for an effective uninstallation of applications containing system or network extensions.
 
 Note: `trashes` will delete `.DS_Store` files immediately.
-
-⚠️ **Note: put-back functionality for individual trashed files** is not yet included in `trashes`.
 
 ### `empty-trashes`
 Empty all Trashes. Use the `--force` argument with an alternate keyboard shortcut, if you want to skip the prompt. The command supports all Trashes, including iCloud Trash, `/System/Volumes/.Trashes/$UID/` and `./Trashes/$UID/` on any mounted & writable volume.
@@ -75,6 +75,13 @@ Note: for the same reasons as stated above, `empty-trashes` will still use the F
 Undo the last move-to-trash operation. The move-to-trash history will not be persistent across reboots.
 
 Note: for the same reasons as stated above, `undo-trashes` will use the Finder for restoring trashed files to their original location; if you have disabled Finder, `undo-trashes` will launch Finder hidden and in the background, and immediately quit Finder again, so the operation will be barely noticeable.
+
+### `put-back`
+Dependent helper script called by `trashes` when the keyboard shortcut for move-to-trash (usually CMD-DEL) is used on trashed files.
+
+Note: for the same reasons as stated above, `put-back` will use the Finder for restoring individual trashed files to their original location; if you have disabled Finder, `put-back` will launch Finder hidden and in the background, and immediately quit Finder again, so the operation will be barely noticeable.
+
+⚠️ **Note: put-back functionality for individual trashed files** is not yet implemented.
 
 ### `unlink`
 Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution! And, of course, protect important files using the Trash Tools. 😉
