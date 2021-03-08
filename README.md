@@ -88,6 +88,9 @@ Note: `unlink` will delete `.DS_Store` files immediately.
 ## To-do
 * `trashes`: "put back" function with CMD-DEL for files in `.Trash` and `.Trashes`
 
+## Tests
+* `.fpsr` dotfile with hash & filename on volumes without support for extended attributes
+
 ## Screenshots
 
 ![sg01](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/01_uunlnk_protected.png)
