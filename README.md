@@ -16,6 +16,7 @@ Most users will probably have no need for such a solution, because the normal us
 ### Notes
 * regular file copies of protected files will have the same protection (i.e. XAs) as the originals
 * on volumes without support for extended attributes, e.g. mounted NAS volumes, the protection flag and tag for `foo` will be written as `._foo`
+* if background jobs are in place that auto-delete Apple Double files on a volume, Trash Tools will not work
 
 ## Requisites
 * **[`trash`](https://github.com/sindresorhus/macos-trash)** (install e.g. with **[Homebrew](https://brew.sh/)**)
@@ -44,7 +45,7 @@ Most users will probably have no need for such a solution, because the normal us
 ### `uunlnk`
 Toggle file protection by writing the extended attribute `local.lcars.fpsr#PS`. Additionally, a user tag called "Protected" will be added, so you can quickly list all your protected files with Spotlight or `mdfind` and `list-protected`.
 
-Note: `.DS_Store` files and already trashed files cannot be protected.
+Note: `.DS_Store` files, Apple Double files, and already trashed files cannot be protected.
 
 ### `list-protected`
 List currently protected files on all volumes or in specified paths (only possible with indexing enabled). Examples:
@@ -87,9 +88,6 @@ Note: `unlink` will delete `.DS_Store` files immediately.
 
 ## To-do
 * `trashes`: "put back" function with CMD-DEL for files in `.Trash` and `.Trashes`
-
-## Tests
-* `.fpsr` dotfile with hash & filename on volumes without support for extended attributes
 
 ## Screenshots
 
