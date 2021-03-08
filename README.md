@@ -57,7 +57,7 @@ List currently protected files on all volumes or in specified paths (only possib
 * `list-protected <directory>` (list protection status of a single directory file or volume, and of all its contents)
 
 ### `trashes`
-Move files to the relevant Trash, including iCloud Trash. On volumes without `.Trash` or `.Trashes`, you will need to use the `unlink` command. Files without write access will be handled by macOS Finder; otherwise the underlying requisite `trash` CLI will call the regular system API.
+Move files to the relevant Trash, including iCloud Trash. On volumes without `.Trash` or `.Trashes`, the underlying requisite `trash` CLI will automatically create the necessary Trash directory; if those volumes do not support the macOS Trash system, you will need to use the `unlink` command instead. Files without write access will be handled by macOS Finder; writable files will be deleted by the `trash` CLI, which uses the regular system API.
 
 Note: using the system API or the Finder (for files without write access) instead of simple `mv` routines is important, because the system's move-to-Trash functionality is needed to properly remove certain filetypes, e.g. for an effective uninstallation of applications containing system or network extensions.
 
@@ -69,7 +69,7 @@ Empty all Trashes. Use the `--force` argument with an alternate keyboard shortcu
 Note: for the same reasons as stated above, `empty-trashes` will still use the Finder for emptying the Trashes; if you have disabled Finder, `empty-trashes` will launch Finder hidden and in the background, and immediately quit Finder again, so the empty-Trashes operation will be barely noticeable.
 
 ### `undo-trashes`
-⚠️ **Note: `undo-trashes` is not yet implemented** and needs some research & a lot of work first.
+⚠️ **Note: `undo-trashes` is still in late alpha** and needs further research & testing.
 
 ### `unlink`
 Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution! And, of course, protect important files using the Trash Tools. 😉
