@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # uunlnk
-# v0.9.5
+# v0.9.6
 # macOS
 #
 # Toggle Protection - part of Trash Tools
@@ -21,7 +21,6 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/hom
 uiprocess="Toggle Protection"
 account=$(id -u)
 xaprocess="uunlnk-cli"
-usertag="Protected"
 xastr="local.lcars.fpsr#PS"
 
 read -d '' xmltag1 <<"EOF"

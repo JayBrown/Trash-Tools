@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # ttsu
-# v0.9
+# v0.9.6
 # macOS
 #
 # Set-up Trash Tools - part of Trash Tools
@@ -25,10 +25,11 @@ errors=false
 
 read -d '' programs <<"EOP"
 	empty-trashes
-	unlink
-	trashes
 	list-protected
+	put-back
+	trashes
 	undo-trashes
+	unlink
 	uunlnk
 EOP
 

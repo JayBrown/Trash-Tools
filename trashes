@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # trashes
-# v0.9.4
+# v0.9.6
 # macOS
 #
 # requisite: trash - https://github.com/sindresorhus/macos-trash
@@ -61,6 +61,8 @@ if $trashed ; then
 	_beep &
 	_notify "ℹ️ Put-back not yet supported!"
 	exit
+	# put-back "$@" & ###
+	# exit ###
 fi
 
 errors=false

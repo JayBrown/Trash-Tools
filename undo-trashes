@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # undo-trashes
-# v0.9.4
+# v0.9.6
 # macOS
 #
 # Undo Trashes - part of Trash Tools
@@ -69,14 +69,30 @@ _finder-move () {
 	osasourcename="$2"
 	osadestdir="$3"
 	osadestname="$4"
-	if osascript &>/dev/null << EOM
+	# osadestname="TEST"
+	if [[ -d $osasource ]] ; then
+		ftype="folder"
+	else
+		ftype="file"
+	fi
+	if osascript 1>&2 << EOM
 set theSource to POSIX file "$osasource"
 set theDestinationFolder to POSIX file "$osadestdir"
 set theTrashName to "$osasourcename"
 set theFilename to "$osadestname"
+set theFiletype to "$ftype"
 tell application "Finder"
-	move theSource to folder theDestinationFolder without replacing
-	set name of file theTrashName of folder theDestinationFolder to theFilename
+	if theFiletype is equal to "file" then
+		move theSource to folder theDestinationFolder without replacing
+		try
+			set name of file theTrashName of folder theDestinationFolder to theFilename
+		end try
+	else if theFiletype is equal to "folder" then
+		set theRestoredFolder to (move theSource to folder theDestinationFolder without replacing)
+		try
+			set name of theRestoredFolder to theFilename
+		end try
+	end if
 end tell
 EOM
 	; then
@@ -104,15 +120,16 @@ do
 	
 	fvol=$(echo "$recent" | awk -F":" '{print $1}')
 	filename=$(echo "$recent" | awk -F":" '{print substr($0, index($0,$2))}')
+	searchname=$(printf '%q\n' "$filename")
 	
 	if [[ $fvol == "/" ]] ; then
 		trashlocs="$HOME/.Trash\n/System/Volumes/Data/.Trashes/$account"
-		trashfile=$(find "$HOME/.Trash" "/System/Volumes/Data/.Trashes/$account" -mindepth 1 -maxdepth 1 -name "$filename*" 2>/dev/null)
+		trashfile=$(find "$HOME/.Trash" "/System/Volumes/Data/.Trashes/$account" -mindepth 1 -maxdepth 1 -name "$searchname*" 2>/dev/null)
 	elif [[ $fvol == "$icloud" ]] ; then
 		trashlocs="$icloud.Trash"
 		if [[ -d "$trashlocs" ]] ; then
 			icloudtrash=true
-			trashfile=$(find "$trashlocs" -mindepth 1 -maxdepth 1 -name "$filename*" 2>/dev/null)
+			trashfile=$(find "$trashlocs" -mindepth 1 -maxdepth 1 -name "$searchname*" 2>/dev/null)
 		else
 			errors=true
 			_notify "❓ Trash folder missing!" "iCloud (CloudDocs)"
@@ -122,7 +139,7 @@ do
 	else
 		trashlocs="$fvol.Trashes/$account"
 		if [[ -d "$trashlocs" ]] ; then
-			trashfile=$(find "$trashlocs" -mindepth 1 -maxdepth 1 -name "$filename*" 2>/dev/null)
+			trashfile=$(find "$trashlocs" -mindepth 1 -maxdepth 1 -name "$searchname*" 2>/dev/null)
 		else
 			errors=true
 			_notify "❓ Trash folder missing!" "$fvol"
@@ -167,15 +184,27 @@ do
 		continue
 	fi
 	destpath="$fvol$destsubpath"
-	if [[ -e "$destpath" ]] ; then
-		errors=true
-		shortdestpath="${destpath/#$HOME/~}"
-		_notify "⚠️ File exists at restore path" "$shortdestpath"
-		continue
-	fi
-	
 	destdir=$(dirname "$destpath")
+	destname="$filename"
+	if [[ -e "$destpath" ]] ; then
+		if [[ $destname == "$trashname" ]] ; then
+			errors=true
+			shortdestpath="${destpath/#$HOME/~}"
+			_notify "⚠️ File exists at restore path" "$shortdestpath"
+			continue
+		else
+			destpath="$destdir/$trashname"
+			if [[ -e "$destpath" ]] ; then
+				errors=true
+				shortdestpath="${destpath/#$HOME/~}"
+				_notify "⚠️ File exists at restore path" "$shortdestpath"
+				continue
+			fi
+			destname="$trashname"
+		fi
+	fi
 	destdirs="$destdirs\n$destdir"
+	
 	if ! pgrep -x "Finder" &>/dev/null ; then
 		open -j -g -b com.apple.finder && sleep 0.5
 		flaunch=true
@@ -187,7 +216,7 @@ do
 			rmblock=true
 		fi
 	fi
-	osaresult=$(_finder-move "$trashfile" "$trashname" "$destdir" "$filename")
+	osaresult=$(_finder-move "$trashfile" "$trashname" "$destdir" "$destname")
 	if [[ $osaresult == "ok" ]] ; then
 		xattr -ds "$trashxa" "$destpath" 2>/dev/null
 		recents=$(echo "$recents" | grep -v "^$recent")
@@ -196,7 +225,6 @@ do
 		shortdestpath="${destpath/#$HOME/~}"
 		_notify "⚠️ File restore failed" "$shortdestpath"
 	fi
-	
 done < <(echo "$recents")
 
 if $errors ; then
