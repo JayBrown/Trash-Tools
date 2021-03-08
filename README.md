@@ -63,13 +63,15 @@ Note: using the system API or the Finder (for files without write access) instea
 
 Note: `trashes` will delete `.DS_Store` files immediately.
 
+⚠️ **Note: put-back functionality for individual trashed files** is not yet included in `trashes`.
+
 ### `empty-trashes`
 Empty all Trashes. Use the `--force` argument with an alternate keyboard shortcut, if you want to skip the prompt. The command supports all Trashes, including iCloud Trash, `/System/Volumes/.Trashes/$UID/` and `./Trashes/$UID/` on any mounted & writable volume.
 
 Note: for the same reasons as stated above, `empty-trashes` will still use the Finder for emptying the Trashes; if you have disabled Finder, `empty-trashes` will launch Finder hidden and in the background, and immediately quit Finder again, so the empty-Trashes operation will be barely noticeable.
 
 ### `undo-trashes`
-⚠️ **Note: `undo-trashes` is still in late alpha** and needs further research & testing.
+Undo the last move-to-trash operation. The move-to-trash history will not be persistent across reboots.
 
 ### `unlink`
 Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution! And, of course, protect important files using the Trash Tools. 😉
