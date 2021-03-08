@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # trashes
-# v0.9.2
+# v0.9.4
 # macOS
 #
 # requisite: trash - https://github.com/sindresorhus/macos-trash
@@ -41,7 +41,27 @@ end tell
 EOT
 }
 
-### LATER: scan $@ for .Trash(es) filepaths > put-back function
+regular=false
+trashed=false
+for filepath in "$@"
+do
+	if echo "$filepath" | grep -q -e "/\.Trash/" -e "/\.Trashes/" &>/dev/null ; then
+		trashed=true
+	else
+		regular=true
+	fi
+	if $trashed && $regular ; then
+		_beep &
+		_notify "❌ Mixed content!" "Trashed & untrashed files"
+		exit
+	fi
+done
+
+if $trashed ; then
+	_beep &
+	_notify "ℹ️ Put-back not yet supported!"
+	exit
+fi
 
 errors=false
 warnings=false
@@ -61,16 +81,9 @@ do
 		_notify "🔏 File is protected!" "config: $filename"
 		continue
 	fi
-	if [[ $filepath == *"/.Trash/$filename" ]] || [[ $filepath == *"/.Trashes/$filename" ]] ; then
-		_beep &
-		_notify "🗑 File already in Trash!" "$filename"
-		continue
-		### LATER: put-back function
-	fi
 	if [[ $filename == ".DS_Store" ]] ; then
-		if rm -f "$filepath" &>/dev/null ; then
-			continue
-		fi
+		rm -f "$filepath" &>/dev/null
+		continue
 	fi
 	if [[ $filepath != "$icloud"* ]] ; then
 		fpathvol=$(df "$filepath" | tail -n +2 | awk '{print substr($0, index($0,$9))}')

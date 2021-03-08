@@ -1,0 +1,225 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# undo-trashes
+# v0.9.4
+# macOS
+#
+# Undo Trashes - part of Trash Tools
+# Copyright (c) 2021 Joss Brown (pseud.)
+# License: MIT / place of jurisdiction: Berlin, Germany / German laws apply
+#
+# keyboard shortcut: CMD-CTRL-DEL
+# 
+# undo the previous move-to-trash operation
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
+
+uiprocess="Undo Trashes"
+account=$(id -u)
+trashxa="local.lcars.fpsr.loc#PS"
+
+tempdir="$HOME/.cache/Finder"
+tmploc="/tmp/local.lcars.TrashTools.$account.trashes"
+icloud="$HOME/Library/Mobile Documents/com~apple~CloudDocs/"
+
+_beep () {
+	osascript -e 'beep' -e 'delay 0.5' &>/dev/null
+}
+
+_notify () {
+	osascript &>/dev/null << EOT
+tell application "System Events"
+	display notification "$2" with title "$uiprocess [" & "$account" & "]" subtitle "$1"
+end tell
+EOT
+}
+
+_dsstore () {
+	trashedpath="$1"
+	trashedname=$(basename "$trashedpath")
+	parentdir=$(dirname "$trashedpath")
+	dsstore="$parentdir/.DS_Store"
+	if ! [[ -f "$dsstore" ]] ; then
+		echo -n ""
+	else
+		dsraw=$(xxd -p "$dsstore" | sed 's/00//g' | tr -d '\n' | sed 's/\([0-9A-F]\{2\}\)/0x\1 /g' | xxd -r -p | strings | grep -v -e "^Bud1$" -e "ptbL$" -e "^DSDB$")
+		trashedinfo=$(echo "$dsraw" | sed 's/ptbLustr-/ptbLustr\n/g' | grep -A3 "^$trashedname\ptbLustr$" | tail -n +2 | grep -v "ptbNustr$")
+		if ! [[ $trashedinfo ]] ; then
+			echo -n ""
+		else
+			if [[ $(echo "$trashedinfo" | wc -l) -eq 1 ]] ; then
+				echo -n "$trashedinfo"
+			else
+				destparent=$(echo "$trashedinfo" | head -1)
+				trashedinfo=$(echo "$trashedinfo" | grep -v "^$destparent$")
+				if [[ $(echo "$trashedinfo" | wc -l) -gt 1 ]] ; then
+					echo -n ""
+				else
+					echo -n "$destparent$trashedinfo"
+				fi
+			fi
+		fi
+	fi
+}
+
+_finder-move () {
+	osasource="$1"
+	osasourcename="$2"
+	osadestdir="$3"
+	osadestname="$4"
+	if osascript &>/dev/null << EOM
+set theSource to POSIX file "$osasource"
+set theDestinationFolder to POSIX file "$osadestdir"
+set theTrashName to "$osasourcename"
+set theFilename to "$osadestname"
+tell application "Finder"
+	move theSource to folder theDestinationFolder without replacing
+	set name of file theTrashName of folder theDestinationFolder to theFilename
+end tell
+EOM
+	; then
+		echo -n "ok"
+	else
+		echo -n "error"
+	fi
+}
+
+recents=$(cat "$tmploc" 2>/dev/null)
+if ! [[ $recents ]] ; then
+	_beep &
+	_notify "🗑 No Trash history available"
+	exit
+fi
+
+errors=false
+rmblock=false
+flaunch=false
+destdirs=""
+alltrashes=""
+while read -r recent
+do
+	icloudtrash=false
+	
+	fvol=$(echo "$recent" | awk -F":" '{print $1}')
+	filename=$(echo "$recent" | awk -F":" '{print substr($0, index($0,$2))}')
+	
+	if [[ $fvol == "/" ]] ; then
+		trashlocs="$HOME/.Trash\n/System/Volumes/Data/.Trashes/$account"
+		trashfile=$(find "$HOME/.Trash" "/System/Volumes/Data/.Trashes/$account" -mindepth 1 -maxdepth 1 -name "$filename*" 2>/dev/null)
+	elif [[ $fvol == "$icloud" ]] ; then
+		trashlocs="$icloud.Trash"
+		if [[ -d "$trashlocs" ]] ; then
+			icloudtrash=true
+			trashfile=$(find "$trashlocs" -mindepth 1 -maxdepth 1 -name "$filename*" 2>/dev/null)
+		else
+			errors=true
+			_notify "❓ Trash folder missing!" "iCloud (CloudDocs)"
+			recents=$(echo "$recents" | grep -v "^$recent")
+			continue
+		fi
+	else
+		trashlocs="$fvol.Trashes/$account"
+		if [[ -d "$trashlocs" ]] ; then
+			trashfile=$(find "$trashlocs" -mindepth 1 -maxdepth 1 -name "$filename*" 2>/dev/null)
+		else
+			errors=true
+			_notify "❓ Trash folder missing!" "$fvol"
+			recents=$(echo "$recents" | grep -v "^$recent")
+			continue
+		fi
+	fi
+	alltrashes="$alltrashes\n$trashlocs"
+	
+	if ! [[ $trashfile ]] ; then
+		errors=true
+		_notify "❓ Trashed file missing!" "$filename"
+		recents=$(echo "$recents" | grep -v "^$recent")
+		continue
+	fi
+	if [[ $(echo "$trashfile" | wc -l) -gt 1 ]] ; then
+		trashfilelist=""
+		while read -r trashfiletest
+		do
+			ctime=$(stat -f %c "$trashfiletest" 2>/dev/null)
+			trashfilelist="$trashfilelist\n$ctime:$trashfiletest"
+		done < <(echo "$trashfile")
+		trashfile=$(echo -e "$trashfilelist" | sort -n -t ':' -r -k1 | head -1 | awk -F":" '{print substr($0, index($0,$2))}')
+	fi
+
+	trashname=$(basename "$trashfile")
+	destsubpath=$(xattr -ps "$trashxa" "$trashfile" 2>/dev/null | awk -F";" '{print substr($0, index($0,$2))}')
+	if ! [[ $destsubpath ]] ; then
+		if ! $icloudtrash ; then
+			destsubpath=$(_dsstore "$trashfile")
+		else
+			destsubpath=$(xattr -pxs "com.apple.trash.put-back.path#PS" "$trashfile" 2>/dev/null | xxd -r -p)
+			if ! [[ $destsubpath ]] ; then
+				destsubpath=$(_dsstore "$trashfile")
+			fi			
+		fi
+	fi
+	if ! [[ $destsubpath ]] ; then
+		errors=true
+		_notify "⚠️ Unknown file destination" "$trashname"
+		recents=$(echo "$recents" | grep -v "^$recent")
+		continue
+	fi
+	destpath="$fvol$destsubpath"
+	if [[ -e "$destpath" ]] ; then
+		errors=true
+		shortdestpath="${destpath/#$HOME/~}"
+		_notify "⚠️ File exists at restore path" "$shortdestpath"
+		continue
+	fi
+	
+	destdir=$(dirname "$destpath")
+	destdirs="$destdirs\n$destdir"
+	if ! pgrep -x "Finder" &>/dev/null ; then
+		open -j -g -b com.apple.finder && sleep 0.5
+		flaunch=true
+		touch "$tempdir/manual"
+		rmblock=true
+	else
+		if ! [[ -e "$tempdir/manual" ]] ; then
+			touch "$tempdir/manual"
+			rmblock=true
+		fi
+	fi
+	osaresult=$(_finder-move "$trashfile" "$trashname" "$destdir" "$filename")
+	if [[ $osaresult == "ok" ]] ; then
+		xattr -ds "$trashxa" "$destpath" 2>/dev/null
+		recents=$(echo "$recents" | grep -v "^$recent")
+	else
+		errors=true
+		shortdestpath="${destpath/#$HOME/~}"
+		_notify "⚠️ File restore failed" "$shortdestpath"
+	fi
+	
+done < <(echo "$recents")
+
+if $errors ; then
+	_beep &
+	echo -e "$recents" | grep -v "^$" > "$tmploc" 2>/dev/null
+else
+	rm -f "$tmploc" 2>/dev/null
+fi
+
+if $flaunch ; then
+	osascript -e 'tell application "Finder" to quit' 2>/dev/null
+	while read destdir
+	do
+		rm -f "$destdir/.DS_Store" 2>/dev/null
+	done < <(echo -e "$destdirs" | grep -v "^$")
+fi
+$rmblock && rm -f "$tempdir/manual" 2>/dev/null
+
+while read -r trashloc
+do
+	if ! [[ $(find "$trashloc" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' 2>/dev/null) ]] ; then
+		rm -f "$trashloc/.DS_Store" 2>/dev/null
+	fi
+done < <(echo -e "$alltrashes" | grep -v "^$" 2>/dev/null)
+
+exit

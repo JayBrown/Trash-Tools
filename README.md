@@ -82,7 +82,6 @@ Note: `unlink` will delete `.DS_Store` files immediately.
 * `~/.cache/Finder`
 
 ## To-do
-* `undo-trashes`: undo last move-to-trash operation with CMD-CTRL-DEL
 * `trashes`: "put back" function with CMD-DEL for files in `.Trash` and `.Trashes`
 
 ## Screenshots
