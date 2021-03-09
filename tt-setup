@@ -1,7 +1,8 @@
 #!/bin/zsh
 # shellcheck shell=bash
 
-# ttsu
+# tt-setup
+# v0.9.8
 # macOS
 #
 # Set-up Trash Tools - part of Trash Tools
