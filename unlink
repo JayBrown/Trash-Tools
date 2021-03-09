@@ -126,7 +126,7 @@ fi
 choice=$(osascript 2>/dev/null << EOA
 tell application "$fman_name"
 	set theButton to button returned of (display alert ¬
-		"Some files could not be removed." & return & return & "Do you want to continue and permanently delete the following $fstr with root privileges?" ¬
+		"Some files could not be removed." & return & return & "Are you sure you want to continue and permanently delete the following $fstr with root privileges?" ¬
 		buttons {"Cancel", "Permanently Delete"} ¬
 		as warning ¬
 		message "$rootnamelist" ¬
