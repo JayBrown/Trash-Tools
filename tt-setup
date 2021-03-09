@@ -2,7 +2,6 @@
 # shellcheck shell=bash
 
 # ttsu
-# v0.9.6
 # macOS
 #
 # Set-up Trash Tools - part of Trash Tools
@@ -23,6 +22,8 @@ fi
 
 errors=false
 
+echo "   * Looking for Trash Tools scripts..."
+
 read -d '' programs <<"EOP"
 	empty-trashes
 	list-protected
@@ -33,7 +34,6 @@ read -d '' programs <<"EOP"
 	unlink
 EOP
 
-echo " * Looking for programs..."
 while read -r program
 do
 	if command -v "$program" &>/dev/null ; then
@@ -44,36 +44,45 @@ do
 	fi
 done < <(echo "$programs")
 
-read -d '' tests <<"EOT"
-	trash;trash;Specify one or more paths
+echo "   * Looking for requisites..."
+
+read -d '' clilist <<"EOT"
+	tag
+	trash
 EOT
 
-echo " * Checking requisites..."
-while read -r teststring
+while read -r cli
 do
-	reqcli=$(echo "$teststring" | awk -F";" '{print $1}')
-	if command -v "$reqcli" &>/dev/null ; then
-		echo "✅  Installed: $reqcli"
-		testcmd=$(echo "$teststring" | awk -F";" '{print $2}')
-		testout=$(echo "$teststring" | awk -F";" '{print substr($0, index($0,$3))}')
-		if [[ $("$testcmd" 2>&1) == "$testout" ]] ; then
-			echo "✅  Tested: $reqcli"
-		else
-			echo "❌  FAILED: $reqcli"
-			errors=true
-		fi
+	if command -v "$cli" &>/dev/null ; then
+		echo "✅  Installed: $cli"
 	else
-		echo "❓  MISSING: $reqcli"
+		echo "❓  MISSING: $cli"
 		errors=true
 	fi
-done < <(echo "$tests")
+done < <(echo "$clilist")
+
+echo "   * Testing requisites..."
+
+if [[ $(tag -h 2>/dev/null | head -1) == "tag - A tool for manipulating and querying file tags." ]] ; then
+	echo "✅  Tested: tag"
+else
+	echo "❌  FAILED: tag"
+	errors=true
+fi
+if [[ $(trash 2>&1) == "Specify one or more paths" ]] ; then
+	echo "✅  Tested: trash"
+else
+	echo "❌  FAILED: trash"
+	errors=true
+fi
+
+echo "   * Looking for user directories..."
 
 read -d '' ulocs <<"EOL"
 	.cache/Finder
 	.config/TrashTools
 EOL
 
-echo " * Checking user directories & file manager..."
 while read -r uloc
 do
 	uloc="$HOME/$uloc"
@@ -118,6 +127,8 @@ do
 		fi
 	fi
 done < <(echo "$configs")
+
+echo "   * Checking file manager settings..."
 
 fman="$HOME/.config/TrashTools/file_manager.txt"
 
@@ -204,7 +215,6 @@ if $fmaninit ; then
 	fi
 fi
 
-echo "Done."
 if $errors ; then
 	exit 1
 else

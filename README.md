@@ -19,12 +19,17 @@ Most users will probably have no need for such a solution, because the normal us
 * if background jobs are in place that auto-delete Apple Double files on a volume, Trash Tools will not work
 
 ## Requisites
-* **[`trash`](https://github.com/sindresorhus/macos-trash)** (install e.g. with **[Homebrew](https://brew.sh/)**)
+* **[`tag`](https://github.com/jdberry/tag)** (install e.g. with **[Homebrew](https://brew.sh/)**)
+* **[`trash`](https://github.com/sindresorhus/macos-trash)** (install e.g. with **Homebrew**)
 
 ## Installation
 * option #1: clone repository and create symbolic links into one of your bin directories
-* option #2: download repository and copy the shell scripts into one of your bin directories
+* option #2: manually download repository and copy the shell scripts into one of your bin directories
 * if necessary, set the executable bits with `chmod +x`
+
+### Update
+* option #1: refresh the repository clone
+* option #2: manually download the repository again
 
 ## Setup
 * find the `CFBundleID` in the `./Contents/Info.plist` of your default file manager (preferably *not* macOS Finder), e.g. `info.filesmanager.Files` for Nimble Commander
@@ -95,6 +100,8 @@ Note: `unlink` will delete `.DS_Store` files immediately.
 
 ## To-do
 * `put-back`: alternate function with CMD-DEL for files in `.Trash` and `.Trashes`
+* try to increase speed for move-to-trash operations
+* try to increase speed of file protection checks
 
 ## Screenshots
 
