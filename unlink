@@ -37,6 +37,10 @@ end tell
 EOT
 }
 
+if [[ $# -gt 10 ]] ; then
+	_notify "⏳ Please wait!" "Checking files for protection..."
+fi
+
 rmlist=""
 rmcount=0
 for filepath in "$@"
