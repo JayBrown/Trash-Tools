@@ -81,7 +81,7 @@ fi
 choice=$(osascript 2>/dev/null << EOG
 tell application "$fman_name"
 	set theButton to button returned of (display alert ¬
-		"Do you really want to permanently delete the following $fstr?" ¬
+		"Are you sure you want to permanently delete the following $fstr?" ¬
 		buttons {"Cancel", "Permanently Delete"} ¬
 		as warning ¬
 		message "$rmnamelist" ¬
