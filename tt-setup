@@ -26,11 +26,11 @@ errors=false
 read -d '' programs <<"EOP"
 	empty-trashes
 	list-protected
+	protect
 	put-back
 	trashes
 	undo-trashes
 	unlink
-	uunlnk
 EOP
 
 echo " * Looking for programs..."

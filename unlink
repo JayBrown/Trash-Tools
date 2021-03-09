@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # unlink
-# v0.9.1
+# v0.9.8
 # macOS
 #
 # Unlink - part of Trash Tools
@@ -44,7 +44,7 @@ do
 	filename=$(basename "$filepath")
 	if xattr -p "local.lcars.fpsr#PS" "$filepath" &>/dev/null ; then
 		_beep &
-		_notify "🔒 File is protected!" "uunlnk: $filename"
+		_notify "🔒 File is protected!" "$filename"
 		continue
 	fi
 	if grep -q "^$filename$" "$protectlist" &>/dev/null ; then
@@ -52,7 +52,7 @@ do
 		_notify "🔏 File is protected!" "config: $filename"
 		continue
 	fi
-	if ! [[ -e "$filepath" ]] ; then
+	if ! [[ -e "$filepath" ]] && ! [[ -h "$filepath" ]] ; then
 		_beep &
 		_notify "❌ File missing or inaccessible!" "$filename"
 		continue

@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # trashes
-# v0.9.6
+# v0.9.8
 # macOS
 #
 # requisite: trash - https://github.com/sindresorhus/macos-trash
@@ -41,28 +41,30 @@ end tell
 EOT
 }
 
-regular=false
-trashed=false
-for filepath in "$@"
-do
-	if echo "$filepath" | grep -q -e "/\.Trash/" -e "/\.Trashes/" &>/dev/null ; then
-		trashed=true
-	else
-		regular=true
-	fi
-	if $trashed && $regular ; then
+if [[ $1 == "-x" ]] ; then
+	shift
+else
+	regular=false
+	trashed=false
+	for filepath in "$@"
+	do
+		if echo "$filepath" | grep -q -e "/\.Trash/" -e "/\.Trashes/" &>/dev/null ; then
+			trashed=true
+		else
+			regular=true
+		fi
+		if $trashed && $regular ; then
+			_beep &
+			_notify "❌ Mixed content!" "Trashed & untrashed files"
+			exit
+		fi
+	done
+	if $trashed ; then
 		_beep &
-		_notify "❌ Mixed content!" "Trashed & untrashed files"
+		_notify "ℹ️ Put-back not yet supported!"
+		put-back -x "$@" &
 		exit
 	fi
-done
-
-if $trashed ; then
-	_beep &
-	_notify "ℹ️ Put-back not yet supported!"
-	exit
-	# put-back "$@" & ###
-	# exit ###
 fi
 
 errors=false
@@ -75,12 +77,17 @@ do
 	filename=$(basename "$filepath")
 	if xattr -p "local.lcars.fpsr#PS" "$filepath" &>/dev/null ; then
 		_beep &
-		_notify "🔒 File is protected!" "uunlnk: $filename"
+		_notify "🔒 File is protected!" "$filename"
 		continue
 	fi
 	if grep -q "^$filename$" "$protectlist" &>/dev/null ; then
 		_beep &
 		_notify "🔏 File is protected!" "config: $filename"
+		continue
+	fi
+	if ! [[ -e "$filepath" ]] && ! [[ -h "$filepath" ]] ; then
+		_beep &
+		_notify "❌ File missing or inaccessible!" "$filename"
 		continue
 	fi
 	if [[ $filename == ".DS_Store" ]] ; then

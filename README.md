@@ -9,7 +9,7 @@ If you want to protect your files against accidental deletion in macOS, you only
 
 There is, however, an old Unix flag called **system no-unlink** (`sunlnk`), which (also on macOS) protects important files from deletion, but still allows certain file modifications. The variant **user no-unlink** (`uunlnk`) is actually present in macOS, and can even be set with the right tools, but it is disregarded by the system and removed as soon as such a file is opened or modified. At any rate, the `sunlnk` and `uunlnk` flags would not be sufficient for our needs anyway, because they still prohibit the user from performing certain modifications like mounting over a file or renaming it. But especially the latter is important for every-day file usage.
 
-The **Trash Tools**, in tandem with its `uunlnk` script, can offer at least a workaround: `uunlnk` will add an **extended attribute** (XA) to a file, and if Trash Tools' file removal scripts access that file, any trash or unlink operation will fail, while the user is still free to perform any and all other file operations, including renaming, moving to a different location, and modifying file contents. These protected files can still be trashed or unlinked by other processes, but if the user remaps the keyboard shortcuts of all trash and unlink routines in his file manager to the Trash Tools scripts, any **accidental file deletions** will at least be prevented in the user's file manager of choice.
+The **Trash Tools**, in tandem with its `protect` script, can offer at least a workaround: `protect` will add an **extended attribute** (XA) to a file, and if Trash Tools' file removal scripts access that file, any trash or unlink operation will fail, while the user is still free to perform any and all other file operations, including renaming, moving to a different location, and modifying file contents. These protected files can still be trashed or unlinked by other processes, but if the user remaps the keyboard shortcuts of all trash and unlink routines in his file manager to the Trash Tools scripts, any **accidental file deletions** will at least be prevented in the user's file manager of choice.
 
 Most users will probably have no need for such a solution, because the normal user just moves files to the Trash, and can then easily restore them, if the deletion was an accident. But these tools might be valuable for those users who perform a lot of permanent deletions on scratch or RAM disks. Accidents in these situations cannot be undone. Furthermore, some third-party file managers do not offer the option to undo a Trash operation or restore a file from the Trash to its original path.
 
@@ -34,7 +34,7 @@ Most users will probably have no need for such a solution, because the normal us
 * populate the file protection list at `~/.config/TrashTools/protections.txt` for files that shall never be unlinked or moved to the Trash (**filenames only!**)
 
 ## Examples for keyboard shortcuts
-* `uunlnk` (toggle file protection): CMD-OPT-CTRL-K
+* `protect` (toggle file protection): CMD-OPT-CTRL-K
 * `trashes` (move to Trash): CMD-DEL
 * `empty-trashes` (empty Trashes): CMD-SHIFT-DEL
 * `empty-trashes --force` (empty Trashes without asking): CMD-OPT-SHIFT-DEL
@@ -42,7 +42,7 @@ Most users will probably have no need for such a solution, because the normal us
 * `unlink` (permanent file deletion): CMD-OPT-DEL
 
 ## Functionality
-### `uunlnk`
+### `protect`
 Toggle file protection by writing the extended attribute `local.lcars.fpsr#PS`. Additionally, a user tag called "Protected" will be added, so you can quickly list all your protected files with Spotlight or `mdfind` and `list-protected`.
 
 Note: `.DS_Store` files, Apple Double files, and already trashed files cannot be protected.
@@ -89,20 +89,20 @@ Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In ca
 Note: `unlink` will delete `.DS_Store` files immediately.
 
 ## Uninstall Trash Tools
-* delete the repository and all copies or symbolic links of the following CLIs: `tt-setup` `uunlnk` `list-protected` `trashes` `empty-trashes` `undo-trashes` `unlink`
+* delete the repository and all copies or symbolic links of the following CLIs: `tt-setup` `protect` `list-protected` `trashes` `empty-trashes` `undo-trashes` `put-back` `unlink`
 * `~/.config/TrashTools`
 * `~/.cache/Finder`
 
 ## To-do
-* `trashes`: "put back" function with CMD-DEL for files in `.Trash` and `.Trashes`
+* `put-back`: alternate function with CMD-DEL for files in `.Trash` and `.Trashes`
 
 ## Screenshots
 
-![sg01](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/01_uunlnk_protected.png)
+![sg01](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/01_protected.png)
 
-![sg09](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/09_uunlnk_toggle-root.png)
+![sg09](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/09_toggle-root.png)
 
-![sg02](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/02_uunlnk_unprotected.png)
+![sg02](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/02_unprotected.png)
 
 ![sg03](https://raw.githubusercontent.com/JayBrown/Trash-Tools/main/img/03_unlink_protected-error.png)
 

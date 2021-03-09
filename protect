@@ -1,7 +1,7 @@
 #!/bin/zsh
 # shellcheck shell=bash
 
-# uunlnk
+# protect
 # v0.9.6
 # macOS
 #
@@ -20,7 +20,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/hom
 
 uiprocess="Toggle Protection"
 account=$(id -u)
-xaprocess="uunlnk-cli"
+xaprocess="protect-cli"
 xastr="local.lcars.fpsr#PS"
 
 read -d '' xmltag1 <<"EOF"
@@ -153,7 +153,7 @@ do
 	fi
 	if ! xattr -p "$xastr" "$filepath" &>/dev/null ; then
 		posixdate=$(date +%s)
-		xakey="uunlnk;$posixdate;$xaprocess"
+		xakey="protected;$posixdate;$xaprocess"
 		if xattr -ws "$xastr" "$xakey" "$filepath" 2>/dev/null ; then
 			tagresult=$(_tagger "$filepath")
 			if [[ $tagresult == "ok" ]] ; then
@@ -237,7 +237,7 @@ do
 	rootname=$(basename "$rootpath")
 	if [[ $method == "uunlnk" ]] ; then
 		posixdate=$(date +%s)
-		xakey="uunlnk;$posixdate;$xaprocess"
+		xakey="protected;$posixdate;$xaprocess"
 		echo -n "$password" | sudo -S xattr -ws "$xastr" "$xakey" "$rootpath" 2>/dev/null
 		if [[ $? == 1 ]] ; then
 			_notify "⚠️ Protection failed!" "$rootname"
