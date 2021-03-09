@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # protect
-# v0.9.6
+# v0.9.8
 # macOS
 #
 # Toggle Protection - part of Trash Tools
@@ -23,20 +23,6 @@ account=$(id -u)
 xaprocess="protect-cli"
 xastr="local.lcars.fpsr#PS"
 
-read -d '' xmltag1 <<"EOF"
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<array>
-EOF
-read -d '' xmltag2 <<"EOF"
-<string>Protected</string>
-EOF
-read -d '' xmltag3 <<"EOF"
-</array>
-</plist>
-EOF
-
 _beep () {
 	osascript -e 'beep' -e 'delay 0.5' &>/dev/null
 }
@@ -47,98 +33,6 @@ tell application "System Events"
 	display notification "$2" with title "$uiprocess [" & "$account" & "]" subtitle "$1"
 end tell
 EOT
-}
-
-_readtag () {
-	readpath="$1"
-	xaxml=""
-	xaxml=$(xattr -pxs com.apple.metadata:_kMDItemUserTags "$readpath" 2>/dev/null | xxd -r -p | plutil -convert xml1 - -o -)
-	if echo "$xaxml" | grep -q "No value\.$" &>/dev/null || echo "$xaxml" | grep -q "^<stdin>:" &>/dev/null ; then
-		echo -n ""
-	else
-		echo -n "$xaxml"
-	fi
-}
-
-_tagger () {
-	tagged=false
-	root=false
-	if [[ $1 == "root" ]] ; then
-		root=true
-		shift
-	fi
-	untag=false
-	if [[ $1 == "untag" ]] ; then
-		shift
-		tagpath="$1"
-		untag=true
-	else
-		tagpath="$1"
-	fi
-	alltags=$(_readtag "$tagpath")
-	if ! [[ $alltags ]] ; then # no user tags
-		if ! $untag ; then # direct tag
-			xmltag=$(echo -e "$xmltag1\n\t$xmltag2\n$xmltag3" | grep -v "^$")
-			binarytag=$(echo -e "$xmltag" | plutil -convert binary1 - -o - | xxd -p -c 256 -u)
-			if ! $root ; then
-				xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
-			else
-				echo -n "$password" | sudo -S xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
-			fi
-			alltags=$(_readtag "$tagpath")
-			tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
-			echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
-		else # untagging not necessary
-			echo -n "ok"
-		fi
-	else # user tags exist
-		tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
-		echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && tagged=true
-		if ! $untag ; then # add user tag
-			if $tagged ; then # already tagged: tagging not necessary
-				echo -n "ok"
-			else # add user tag to existing tags
-				xmltag=$(echo -e "$xmltag1\n$tagstrings\n$xmltag2\n$xmltag3" | grep -v "^$" | sed 's/^<string>/\\t<string>/g')
-				binarytag=$(echo -e "$xmltag" | plutil -convert binary1 - -o - | xxd -p -c 256 -u)
-				if ! $root ; then
-					xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
-				else
-					echo -n "$password" | sudo -S xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" 2>/dev/null
-				fi
-				alltags=$(_readtag "$tagpath")
-				tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
-				echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
-			fi
-		else # remove user tag
-			if ! $tagged ; then # no tag: untagging not necessary
-				echo -n "ok"
-			else # remove user tag from existing tags
-				alltags=$(echo -e "$alltags" | grep -v "<string>Protected</string>")
-				allstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
-				if ! [[ $allstrings ]] ; then # "Protected" was the only tag: direct XA removal
-					if ! $root ; then
-						xattr -ds com.apple.metadata:_kMDItemUserTags "$tagpath" &>/dev/null
-					else
-						echo -n "$password" | sudo -S xattr -d com.apple.metadata:_kMDItemUserTags "$tagpath" &>/dev/null
-					fi
-					alltags=$(_readtag "$tagpath")
-					tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
-					! echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
-				else # more tags than just "Protected"
-					xmltag=$(echo -e "$xmltag1\n$allstrings\n$xmltag3" | grep -v "^$" | sed 's/^<string>/\\t<string>/g')
-					binarytag=$(echo -e "$xmltag" | plutil -convert binary1 - -o - | xxd -p -c 256 -u)
-					if ! $root ; then
-						xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" &>/dev/null
-					else
-						echo -n "$password" | sudo -S xattr -wxs com.apple.metadata:_kMDItemUserTags "$binarytag" "$tagpath" &>/dev/null
-					fi
-					alltags=$(_readtag "$tagpath")
-					tagstrings=$(echo "$alltags" | grep -e "<string>" -e "</string>")
-					! echo "$tagstrings" | grep -q "<string>Protected</string>" &>/dev/null && echo -n "ok" || echo -n "error"
-				fi
-			fi
-		fi
-	fi
 }
 
 errors=false
@@ -155,8 +49,7 @@ do
 		posixdate=$(date +%s)
 		xakey="protected;$posixdate;$xaprocess"
 		if xattr -ws "$xastr" "$xakey" "$filepath" 2>/dev/null ; then
-			tagresult=$(_tagger "$filepath")
-			if [[ $tagresult == "ok" ]] ; then
+			if tag --add Protected "$filepath" &>/dev/null ; then
 				_notify "🔒 🏷 File protected & tagged" "$filename"
 			else
 				_notify "🔒 File protected without tag" "$filename"
@@ -169,8 +62,7 @@ do
 		fi
 	else
 		if xattr -ds "$xastr" "$filepath" 2>/dev/null ; then
-			tagresult=$(_tagger untag "$filepath")
-			if [[ $tagresult == "ok" ]] ; then
+			if tag --remove Protected "$filepath" &>/dev/null ; then
 				_notify "🆓 File liberated" "$filename"
 			else
 				_notify "🆓 🏷 File liberated (still tagged)" "$filename"
@@ -245,8 +137,7 @@ do
 			errors=true
 		else
 			((scount++))
-			tagresult=$(_tagger root "$filepath")			
-			if [[ $tagresult == "ok" ]] ; then
+			if echo -n "$password" | sudo -S tag --add Protected "$rootpath" &>/dev/null ; then
 				_notify "🔒 🏷 File protected & tagged" "$filename"
 			else
 				_notify "🔒 File protected without tag" "$filename"
@@ -260,8 +151,7 @@ do
 			errors=true
 		else
 			((scount++))
-			tagresult=$(_tagger root untag "$filepath")			
-			if [[ $tagresult == "ok" ]] ; then
+			if echo -n "$password" | sudo -S tag --remove Protected "$rootpath" &>/dev/null ; then
 				_notify "🆓 File liberated" "$filename"
 			else
 				_notify "🆓 🏷 File liberated (still tagged)" "$filename"
@@ -269,6 +159,8 @@ do
 		fi
 	fi
 done < <(echo -e "$rootlist" | grep -v "^$")
+
+sudo -k
 
 if $errors ; then
 	_beep &
