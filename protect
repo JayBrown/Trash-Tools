@@ -42,7 +42,7 @@ for filepath in "$@"
 do
 	filename=$(basename "$filepath")
 	if [[ $filepath == *"/.Trash/"* ]] || [[ $filepath == *"/.Trashes/"* ]] || [[ $filename == ".DS_Store" ]] || [[ $filename == "._"* ]] ; then
-		_notify "⚠️ Protection error" "Certain files cannot be protected"
+		_notify "⚠️ Protection error" "Certain files or paths cannot be protected"
 		continue
 	fi
 	if ! xattr -p "$xastr" "$filepath" &>/dev/null ; then

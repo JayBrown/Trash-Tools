@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # trashes
-# v0.9.8
+# v0.9.9
 # macOS
 #
 # requisite: trash - https://github.com/sindresorhus/macos-trash
@@ -60,8 +60,6 @@ else
 		fi
 	done
 	if $trashed ; then
-		_beep &
-		_notify "ℹ️ Put-back not yet supported!"
 		put-back -x "$@" &
 		exit
 	fi
@@ -178,7 +176,7 @@ do
 		parentdir=$(dirname "$rmpath")
 		rm -f "$parentdir/.DS_Store" 2>/dev/null
 	fi
-	if [[ -e "$rmpath" ]] ; then
+	if [[ -e "$rmpath" ]] || [[ -h "$rmpath" ]] ; then
 		xattr -ds "$trashxa" "$rmpath" 2>/dev/null
 		rmname=$(basename "$rmpath")
 		if [[ $rmpath != "$icloud"* ]] ; then

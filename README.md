@@ -40,7 +40,7 @@ Most users will probably have no need for such a solution, because the normal us
 
 ## Examples for keyboard shortcuts
 * `protect` (toggle file protection): CMD-OPT-CTRL-K
-* `trashes` (move to Trash): CMD-DEL
+* `trashes` (move to Trash or put back for trashed files): CMD-DEL
 * `empty-trashes` (empty Trashes): CMD-SHIFT-DEL
 * `empty-trashes --force` (empty Trashes without asking): CMD-OPT-SHIFT-DEL
 * `undo-trashes` (undo trash operations): CMD-CTRL-DEL
@@ -65,7 +65,7 @@ List currently protected files on all volumes or in specified paths (only possib
 ### `trashes`
 Move files to the relevant Trash, including iCloud Trash. On volumes without `.Trash` or `.Trashes`, the underlying requisite `trash` CLI will automatically create the necessary Trash directory; if those volumes do not support the macOS Trash system, you will need to use the `unlink` command instead. Files without write access will be handled by macOS Finder; writable files will be deleted by the `trash` CLI, which uses the regular system API.
 
-When using `trashes` on trashed files, the script will call the dependent `put-back` helper (*see below*) that will call Finder to move the selected files back to their original path (if possible).
+When using `trashes` on trashed files, the script will call the dependent `put-back` helper (*see below*) that will call Finder to move the selected files back to their original path (if possible). It is also possible to put back nested files that are not in the root of the Trash folder.
 
 Note: using the system API or the Finder (for files without write access) instead of simple `mv` routines is important, because the system's move-to-Trash functionality is needed to properly remove certain filetypes, e.g. for an effective uninstallation of applications containing system or network extensions.
 
@@ -99,7 +99,6 @@ Note: `unlink` will delete `.DS_Store` files immediately.
 * `~/.cache/Finder`
 
 ## To-do
-* `put-back`: alternate function with CMD-DEL for files in `.Trash` and `.Trashes`
 * try to increase speed for move-to-trash operations
 * try to increase speed of file protection checks
 
