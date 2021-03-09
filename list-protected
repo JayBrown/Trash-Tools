@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # list-protected
-# v0.9
+# v0.9.8
 # macOS
 #
 # List Protected Files - part of Trash Tools
@@ -34,12 +34,26 @@ usertag="Protected"
 xastr="local.lcars.fpsr#PS"
 
 _protectlist () {
-	if ! [[ $protectlist ]] ; then
-		if ! mdutil -s "$volume" | grep -q "Indexing enabled" &>/dev/null ; then
-			echo "mdutil: indexing not enabled" >&2
+	protectlist=""
+	if [[ $1 == "ckvol" ]] ; then
+		mountpoint=$(df "$volume" | tail -n +2 | awk '{print substr($0, index($0,$9))}')
+		! [[ $mountpoint ]] && mountpoint="/"
+		if mdutil -s "$mountpoint" | grep -q "Indexing enabled\." &>/dev/null ; then
+			protectlist=$(mdfind -onlyin "$volume" "kMDItemUserTags == $usertag" 2>/dev/null)
 		else
-			echo "-" >&2
+			echo "mdutil: indexing not enabled or status unknown - using regular find instead: please wait..." >&2
+			protectlist=$(find "$volume" -xattrname "$xastr" 2>/dev/null)
 		fi
+	else
+		if mdutil -s "$volume" | grep -q "Indexing enabled\." &>/dev/null ; then
+			protectlist=$(mdfind -onlyin "$volume" "kMDItemUserTags == $usertag" 2>/dev/null)
+		else
+			echo "mdutil: indexing not enabled - using regular find instead: please wait..." >&2
+			protectlist=$(find "$volume" -xattrname "$xastr" 2>/dev/null)
+		fi
+	fi
+	if ! [[ $protectlist ]] ; then
+		echo "No results" >&2
 	else
 		if ! $verbose ; then
 			echo "$protectlist"
@@ -62,21 +76,22 @@ fi
 if ! [[ $* ]] ; then
 	allvols=$(df | tail -n +2 | grep -v -e "/$" -e "/dev$" -e "/home$" -e "/System/Volumes/" | awk '{print substr($0, index($0,$9))}')
 	echo -e "--------\nAccessing: /" >&2
-	protectlist=$(mdfind -onlyin / "kMDItemUserTags == $usertag" 2>/dev/null)
+	volume="/"
 	_protectlist
 	if [[ $allvols ]] ; then
 		while read -r volume
 		do
 			echo -e "--------\nAccessing: $volume" >&2
 			volume=$(echo "$volume/" | sed 's-//$-/-')
-			protectlist=$(mdfind -onlyin "$volume" "kMDItemUserTags == $usertag" 2>/dev/null)
 			_protectlist
 		done < <(echo "$allvols")
 	fi
 else
 	for filepath in "$@"
 	do
-		! [[ -e "$filepath" ]] && continue
+		if ! [[ -e "$filepath" ]] && ! [[ -h "$filepath" ]] ; then
+			continue
+		fi
 		if ! [[ -d "$filepath" ]] ; then
 			echo "--------" >&2
 			protxa=$(xattr -ps "$xastr" "$filepath" 2>/dev/null)
@@ -99,9 +114,9 @@ else
 					echo "$filepath"
 				fi
 			fi
-			filepath=$(echo "$filepath/" | sed 's-//$-/-')
-			protectlist=$(mdfind -onlyin "$filepath" "kMDItemUserTags == $usertag" 2>/dev/null)
-			[[ $protectlist ]] && _protectlist
+			volume=$(echo "$filepath/" | sed 's-//$-/-')
+			volume="$filepath"
+			_protectlist ckvol
 		fi
 	done
 fi
