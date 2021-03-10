@@ -17,6 +17,7 @@ Most users will probably have no need for such a solution, because the normal us
 * regular file copies of protected files will have the same protection (i.e. XAs) as the originals
 * on volumes without support for extended attributes, e.g. mounted NAS volumes, the protection flag and tag for `foo` will be written as `._foo`
 * if background jobs are in place that auto-delete Apple Double files on a volume, Trash Tools will not work
+* the protected status will **not help against overwriting a file** during copy-paste or copy-move; for that you would need drop-in replacements for those commands as well (CMD-V and CMD-OPT-V)
 
 ## Requisites
 * **[`tag`](https://github.com/jdberry/tag)** (install e.g. with **[Homebrew](https://brew.sh/)**)
@@ -32,7 +33,7 @@ Most users will probably have no need for such a solution, because the normal us
 * option #2: manually download the repository again
 
 ## Setup
-* find the `CFBundleID` in the `./Contents/Info.plist` of your default file manager (preferably *not* macOS Finder), e.g. `info.filesmanager.Files` for Nimble Commander
+* find the `CFBundleID` in the `./Contents/Info.plist` of your default file manager (i.e. not macOS Finder; *see above*), e.g. `info.filesmanager.Files` for Nimble Commander
 * execute the command `defaults read -g NSFileViewer 2>/dev/null`
 * if there is no output, or if the bundle ID does not match your default file manager's bundle ID, execute the command `defaults write -g NSFileViewer <CFBundleID>`, while replacing `<CFBundleID>` with the actual bundle ID of your default file manager
 * execute the command `tt-setup` and check the output for errors or warnings
@@ -48,12 +49,12 @@ Most users will probably have no need for such a solution, because the normal us
 
 ## Functionality
 ### `protect`
-Toggle file protection by writing the extended attribute `local.lcars.fpsr#PS`. Additionally, a user tag called "Protected" will be added, so you can quickly list all your protected files with Spotlight or `mdfind` and `list-protected`.
+Toggle file protection by writing the extended attribute `local.lcars.fpsr#PS`. Additionally, a user tag called "Protected" will be added, so you can quickly list all your protected files with Spotlight (search for `tag:protected`), or with `mdfind` and `list-protected`.
 
-Note: `.DS_Store` files, Apple Double files, and already trashed files cannot be protected.
+Note: `.DS_Store` files, Apple Double files, and already trashed files cannot (and should not) be protected.
 
 ### `list-protected`
-List currently protected files on all volumes or in specified paths (only possible with indexing enabled). Examples:
+List currently protected files on all volumes or in specified paths. Examples:
 
 * `list-protected` (raw `mdfind` list of all protected filepaths)
 * `list-protected -v` (list protected files with extended attribute prefixed)
@@ -61,6 +62,8 @@ List currently protected files on all volumes or in specified paths (only possib
 * `list-protected -v 2>/dev/null | sort -n -t ';' -r -k2 | awk -F":" '{print substr($0, index($0,$2))}' | sort` (sort protected files, most recent first, filenames only & sorted by name)
 * `list-protected <file>` (list protection status of a single non-directory file)
 * `list-protected <directory>` (list protection status of a single directory file or volume, and of all its contents)
+
+Note: on volumes without an index or without support for indexing, `list-protected` will use `find -xattrname` instead of `mdfind`, i.e. searching a path with a lot of files could take a long time.
 
 ### `trashes`
 Move files to the relevant Trash, including iCloud Trash. On volumes without `.Trash` or `.Trashes`, the underlying requisite `trash` CLI will automatically create the necessary Trash directory; if those volumes do not support the macOS Trash system, you will need to use the `unlink` command instead. Files without write access will be handled by macOS Finder; writable files will be deleted by the `trash` CLI, which uses the regular system API.
