@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9.8
+# v0.9.9
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -183,8 +183,10 @@ EOG
 	$rmblock && rm -f "$tempdir/manual" 2>/dev/null
 	trashes_size2=$(_totalsize | sed 's/\.$//')
 	if [[ $trashes_size2 -gt 0 ]] ; then
-		trashfull=true
+		trashfull=true ###
 		trashes_hrsize2=$(_bhr "$trashes_size2" 2>/dev/null)
+		### check for files other than .DS_Store if not remove .DS_Store silently
+		### same for size1
 	else
 		emptydirs=""
 		while read -r trashloc
