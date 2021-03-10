@@ -166,7 +166,6 @@ do
 			fi
 		fi
 		destsubpath=$(xattr -ps "$trashxa" "$testpath" 2>/dev/null)
-		destsubpath=""
 		if ! [[ $destsubpath ]] ; then
 			if ! $icloudloc ; then
 				destsubpath=$(_dsstore "$testpath")
