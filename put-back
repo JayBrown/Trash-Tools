@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # put-back
-# v0.9.9
+# v0.9.10
 # macOS
 #
 # Put Back - part of Trash Tools
@@ -69,8 +69,8 @@ _dsstore () {
 	if ! [[ -f "$dsstore" ]] ; then
 		echo -n ""
 	else
-		dsraw=$(xxd -p "$dsstore" | sed 's/00//g' | tr -d '\n' | sed 's/\([0-9A-F]\{2\}\)/0x\1 /g' | xxd -r -p | strings | grep -v -e "^Bud1$" -e "ptbL$" -e "^DSDB$")
-		trashedinfo=$(echo "$dsraw" | sed 's/ptbLustr-/ptbLustr\n/g' | grep -A3 "^$trashedname\ptbLustr$" | tail -n +2 | grep -v "ptbNustr$")
+		dsraw=$(xxd -p "$dsstore" | sed 's/00//g' | tr -d '\n' | sed 's/\([0-9A-F]\{2\}\)/0x\1 /g' | xxd -r -p | strings | LC_ALL=C tr -dc '\0-\177' | grep -v -e "^Bud1$" -e "ptbL$" -e "^DSDB$" -e "vSrnlong$" -e "blob$")
+		trashedinfo=$(echo "$dsraw" | sed -e 's/ptbNustr$/\n$ptbNustr/g' -e 's/ptbLustr-/ptbLustr\n/g' -e 's/ptbLustr /ptbLustr\n/g' | grep -A3 "^$trashedname\ptbLustr$" 2>/dev/null | tail -n +2 | grep -v "ptbNustr$" | sed 's-^System/Volumes/Data/--g')
 		if ! [[ $trashedinfo ]] ; then
 			echo -n ""
 		else
