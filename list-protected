@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # list-protected
-# v0.9.8
+# v0.9.11
 # macOS
 #
 # List Protected Files - part of Trash Tools
@@ -75,6 +75,11 @@ if [[ $1 =~ ^(-v|--verbose)$ ]] ; then
 fi
 if ! [[ $* ]] ; then
 	allvols=$(df | tail -n +2 | grep -v -e "/$" -e "/dev$" -e "/home$" -e "/System/Volumes/" | awk '{print substr($0, index($0,$9))}')
+	finalvols="$allvols"
+	while read -r volume
+	do
+		finalvols=$(echo "$finalvols" | grep -v "^$volume - Data$" 2>/dev/null)
+	done < <(echo "$allvols")
 	echo -e "--------\nAccessing: /" >&2
 	volume="/"
 	_protectlist
@@ -84,7 +89,7 @@ if ! [[ $* ]] ; then
 			echo -e "--------\nAccessing: $volume" >&2
 			volume=$(echo "$volume/" | sed 's-//$-/-')
 			_protectlist
-		done < <(echo "$allvols")
+		done < <(echo "$finalvols")
 	fi
 else
 	for filepath in "$@"

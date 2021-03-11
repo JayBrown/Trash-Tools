@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # tt-setup
-# v0.9.8
+# v0.9.11
 # macOS
 #
 # Set-up Trash Tools - part of Trash Tools
@@ -11,7 +11,7 @@
 #
 # keyboard shortcut: - (command-line only)
 #
-# move files to their relevant trash
+# setup/test Trash Tools
 
 export LANG=en_US.UTF-8
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
@@ -97,7 +97,7 @@ do
 	else
 		if ! [[ -d "$uloc" ]] ; then
 			if ! rm -rf "$uloc" &>/dev/null ; then
-				echo "⚠️ WARNING - improper: $uloc"
+				echo "⚠️ WARNING - improper filetype: $uloc"
 			fi
 			if mkdir -p "$uloc" &>/dev/null ; then
 				echo "✅  Directory created: $uloc"
@@ -158,7 +158,6 @@ else
 			fmaninit=true
 			echo "⚠️  WARNING: '$fman_name' not installed – defaulting to Finder (com.apple.finder)"
 			rm -f "$fman" 2>/dev/null
-			
 		else
 			fman_name=$(defaults read "$fmapploc/Contents/Info.plist" CFBundleName 2>/dev/null)
 			if ! [[ $fman_name ]] ; then
