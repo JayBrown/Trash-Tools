@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # undo-trashes
-# v0.9.10
+# v0.9.12
 # macOS
 #
 # Undo Trashes - part of Trash Tools
@@ -244,7 +244,7 @@ $rmblock && rm -f "$tempdir/manual" 2>/dev/null
 
 while read -r trashloc
 do
-	if ! [[ $(find "$trashloc" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' 2>/dev/null) ]] ; then
+	if ! [[ $(find "$trashloc" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' -print -quit 2>/dev/null) ]] ; then
 		rm -f "$trashloc/.DS_Store" 2>/dev/null
 	fi
 done < <(echo -e "$alltrashes" | grep -v "^$" 2>/dev/null)

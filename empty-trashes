@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9.9
+# v0.9.12
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -149,8 +149,10 @@ fi
 
 if $trashfull ; then
 	if ! $force ; then
+		frontmost=$(osascript -e 'tell application "System Events"' -e 'set theFrontmostApp to name of application processes whose frontmost is true' -e 'end tell' 2>/dev/null)
+		! [[ $frontmost ]] && frontmost="$fman_name"
 		choice=$(osascript 2>/dev/null << EOG
-tell application "$fman_name"
+tell application "$frontmost"
 	set theButton to button returned of (display alert ¬
 		"Are you sure you want to empty all of your system's Trashes?" ¬
 		buttons {"Cancel", "Empty Trashes"} ¬
@@ -178,31 +180,41 @@ EOG
 		fi
 	fi
 	osascript -e 'tell application "Finder"' -e 'empty trash' -e 'end tell' -e 'delay 0.5' 2>/dev/null
-	trashfull=false
 	$flaunch && osascript -e 'tell application "Finder" to quit' 2>/dev/null
 	$rmblock && rm -f "$tempdir/manual" 2>/dev/null
+	trashfull=false
+	emptydirs=""
+	alltrashes=$(_all-trashes)
+	while read -r trashloc
+	do
+		filesremain=false
+		dirsremain=false
+		if ! [[ $(find "$trashloc" -mindepth 1 -type f ! -name '.DS_Store' -print -quit 2>/dev/null) ]] ; then
+			filesremain=true
+		fi
+		trasheddirs=$(find "$trashloc" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+		if [[ $trasheddirs ]] ; then
+			emptydirs="$emptydirs\n$trasheddirs"
+			dirsremain=true
+		fi
+		if ! $filesremain && ! $dirsremain ; then
+			rm -f "$trashloc/.DS_Store" 2>/dev/null
+		fi
+	done < <(echo -e "$alltrashes")
 	trashes_size2=$(_totalsize | sed 's/\.$//')
+	trashes_hrsize2=$(_bhr "$trashes_size2" 2>/dev/null)
 	if [[ $trashes_size2 -gt 0 ]] ; then
-		trashfull=true ###
-		trashes_hrsize2=$(_bhr "$trashes_size2" 2>/dev/null)
-		### check for files other than .DS_Store if not remove .DS_Store silently
-		### same for size1
+		trashfull=true
 	else
-		emptydirs=""
-		while read -r trashloc
-		do
-			trasheddirs=$(find "$trashloc" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
-			[[ $trasheddirs ]] && emptydirs="$emptydirs\n$trasheddirs"
-		done < <(_all-trashes)
 		emptydirs=$(echo -e "$emptydirs" | grep -v "^$")
 		if [[ $emptydirs ]] ; then
 			trashfull=true
 			trashstring="are currently occupied by:"
 			emptydircount=$(echo "$emptydirs" | wc -l | xargs)
 			if [[ $emptydircount -eq 1 ]] ; then
-				trashes_hrsize1="$emptydircount empty folder"
+				trashes_hrsize2="$emptydircount empty folder"
 			else
-				trashes_hrsize1="$emptydircount empty folders"
+				trashes_hrsize2="$emptydircount empty folders"
 			fi
 		fi
 	fi
