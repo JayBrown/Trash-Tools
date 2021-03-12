@@ -80,9 +80,9 @@ Dependent helper script called by `trashes` when the keyboard shortcut for move-
 Note: for the same reasons as stated above, `put-back` will use the Finder for restoring individual trashed files to their original location; if you have disabled Finder, `put-back` will launch Finder hidden and in the background, and immediately quit Finder again, so the operation will be barely noticeable.
 
 ### `empty-trashes`
-Empty all Trashes. Use the `--force` argument with an alternate keyboard shortcut, if you want to skip the prompt. The command supports all Trashes, including iCloud Trash, `/System/Volumes/.Trashes/$UID/` and `./Trashes/$UID/` on any mounted & writable volume.
+Empty all Trashes. Use the `--force` argument with an alternate keyboard shortcut, if you want to skip the prompt. The command supports all Trashes, including iCloud Trash, `/System/Volumes/.Trashes/$UID/` and `./Trashes/$UID/` on any mounted & writable volume. It is also possible to view a list of all trashed files before emptying the Trashes.
 
-Note: for the same reasons as stated above, `empty-trashes` will still use the Finder for emptying the Trashes; if you have disabled Finder, `empty-trashes` will launch Finder hidden and in the background, and immediately quit Finder again, so the operation will be barely noticeable.
+Note: for the same reasons as stated above, `empty-trashes` will still utilize the Finder to empty the Trashes; if you have disabled Finder, `empty-trashes` will launch Finder hidden and in the background, and immediately quit Finder again, so the operation will be barely noticeable.
 
 ### `undo-trashes`
 Undo the last move-to-trash operation. The move-to-trash history will not be persistent across reboots.
@@ -93,6 +93,12 @@ Note: for the same reasons as stated above, `undo-trashes` will use the Finder f
 Permanently delete (unlink) files. Internally, this command uses `rm -rf`. In case the executing user has no write access, files will be removed with `sudo -S rm -rf`, and the user needs to enter his administrator password first. ⚠️ As in any situation, please handle permanent file deletions with caution! And, of course, protect important files using the Trash Tools. 😉
 
 Note: `unlink` will delete `.DS_Store` files immediately.
+
+### `tt-setup` additional options
+You have additional options for the `tt-setup` command:
+
+* `-p|--protections` will list the user-defined filenames that are categorically protected from deletion
+* `-h|--history` will print information about the previous move-to-trash operation
 
 ## Uninstall Trash Tools
 * delete the repository and all copies or symbolic links of the following CLIs: `tt-setup` `protect` `list-protected` `trashes` `empty-trashes` `undo-trashes` `put-back` `unlink`

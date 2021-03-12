@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9.14
+# v0.9.15
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -45,7 +45,46 @@ EOT
 
 _all-trashes () {
 	othertrashes=$(df | tail -n +2 | grep -v -e "/$" -e "/dev$" -e "/home$" -e "/System/Volumes/" | awk '{print substr($0, index($0,$9))}' | sed 's-$-/\.Trashes/'"$account"'-')
-	echo -e "$HOME/.Trash\n$othertrashes\n/System/Volumes/Data/.Trashes/$account\n$icloud/.Trash"
+	echo -e "$HOME/.Trash\n$icloud/.Trash\n$othertrashes\n/System/Volumes/Data/.Trashes/$account"
+}
+
+_list-trashed () {
+	alltrashed=""
+	while read -r scanloc
+	do
+		if [[ $scanloc == "$HOME/.Trash" ]] ; then
+			locinfo="Home"
+		elif [[ $scanloc == "$icloud/.Trash" ]] ; then
+			locinfo="iCloud"
+		elif [[ $scanloc == "/System/Volumes/Data/Trashes/$account" ]] ; then
+			locinfo="Data Volume Root"
+		else
+			locinfo=$(echo "$scanloc" | sed 's-/\.Trashes/'"$account"'$--')
+		fi
+		trashed=$(find "$scanloc" -mindepth 1 2>/dev/null | sed "s-^$scanloc/--g" | sort -f)
+		if [[ $trashed ]] ; then
+			alltrashed="$alltrashed\n\n🗑 $locinfo\n\n$trashed"
+		fi
+	done < <(_all-trashes)
+	alltrashed=$(echo -e "$alltrashed" | tail -n +3)
+	lchoice=$(osascript 2>/dev/null << EOL
+tell application "System Events"
+	activate
+	set theTrashIcon to POSIX file "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FullTrashIcon.icns"
+	set theButton to button returned of (display dialog "$alltrashed" ¬
+		buttons {"Cancel", "Continue & Empty Trashes"} ¬
+		cancel button 1 ¬
+		default button 2 ¬
+		with title ¬
+		"Empty Trashes - All Contents" ¬
+		with icon theTrashIcon ¬
+		giving up after 180)
+end tell
+EOL
+	)
+	if [[ $lchoice != "Continue & Empty Trashes" ]] ; then
+		exit
+	fi
 }
 
 _all-volumes () {
@@ -155,18 +194,19 @@ if $trashfull ; then
 tell application "$frontmost"
 	set theButton to button returned of (display alert ¬
 		"Are you sure you want to empty all of your system's Trashes?" ¬
-		buttons {"Cancel", "Empty Trashes"} ¬
+		buttons {"Cancel", "List Files", "Empty Trashes"} ¬
 		as informational ¬
 		message "Your Trashes (including the iCloud Trash) $trashstring" & return & return & "$trashes_hrsize1" ¬
 		cancel button 1 ¬
-		default button 2 ¬
+		default button 3 ¬
 		giving up after 180)
 end tell
 EOG
 		)
-		if [[ $choice != "Empty Trashes" ]] ; then
+		if ! [[ $choice ]] || [[ $choice == "false" ]] ; then
 			exit
 		fi
+		[[ $choice == "List Files" ]] && _list-trashed
 	fi
 	if ! pgrep -x "Finder" &>/dev/null ; then
 		open -j -g -b com.apple.finder && sleep 0.5

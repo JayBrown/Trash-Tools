@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # tt-setup
-# v0.9.11
+# v0.9.15
 # macOS
 #
 # Set-up Trash Tools - part of Trash Tools
@@ -17,8 +17,36 @@ export LANG=en_US.UTF-8
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/local/bin:/opt/homebrew/bin:/opt/sw/bin:"$HOME"/.local/bin:"$HOME"/bin:"$HOME"/local/bin
 
 if [[ $1 =~ ^(-p|--protections)$ ]] ; then
-	cat "$HOME/.config/TrashTools/protections.txt"
-	exit
+	echo -e "   * Manually add filenames for categorical protection to:\n   * ~/.config/TrashTools/protections.txt" >&2
+	protections=$(cat "$HOME/.config/TrashTools/protections.txt" 2>/dev/null)
+	if [[ $protections ]] ; then
+		echo "--------" >&2
+		while read -r protected
+		do
+			echo "Protected: $protected"
+		done < <(echo "$protections")
+		exit
+	else
+		exit 1
+	fi
+elif [[ $1 =~ ^(-h|--history) ]] ; then
+	account=$(id -u)
+	undohist=$(cat "/tmp/local.lcars.TrashTools.$account.trashes" 2>/dev/null)
+	if [[ $undohist ]] ; then
+		echo "   * Trashes history" >&2
+		while read -r histentry
+		do
+			echo "--------" >&2
+			histvol=$(echo "$histentry" | awk -F":" '{print $1}')
+			histfile=$(echo "$histentry" | awk -F":" '{print substr($0, index($0,$2))}')
+			echo -e "File: $histfile"
+			echo -e "Volume: $histvol"
+		done < <(echo "$undohist")
+		exit
+	else
+		echo "   * Trashes history is empty" >&2
+		exit 1
+	fi
 fi
 
 errors=false
