@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9.15
+# v0.9.16
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -61,7 +61,7 @@ _list-trashed () {
 		else
 			locinfo=$(echo "$scanloc" | sed 's-/\.Trashes/'"$account"'$--')
 		fi
-		trashed=$(find "$scanloc" -mindepth 1 2>/dev/null | sed "s-^$scanloc/--g" | sort -f)
+		trashed=$(find "$scanloc" -mindepth 1 -maxdepth 1 2>/dev/null | sed "s-^$scanloc/--g" | sort -f)
 		if [[ $trashed ]] ; then
 			alltrashed="$alltrashed\n\n🗑 $locinfo\n\n$trashed"
 		fi
