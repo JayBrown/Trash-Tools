@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9.12
+# v0.9.14
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -189,7 +189,7 @@ EOG
 	do
 		filesremain=false
 		dirsremain=false
-		if ! [[ $(find "$trashloc" -mindepth 1 -type f ! -name '.DS_Store' -print -quit 2>/dev/null) ]] ; then
+		if [[ $(find "$trashloc" -mindepth 1 -type f ! -name '.DS_Store' -print -quit 2>/dev/null) ]] ; then
 			filesremain=true
 		fi
 		trasheddirs=$(find "$trashloc" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
