@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # empty-trashes
-# v0.9.16
+# v0.9.17
 # macOS
 #
 # Empty Trashes - part of Trash Tools
@@ -60,10 +60,13 @@ _list-trashed () {
 			locinfo="Data Volume Root"
 		else
 			locinfo=$(echo "$scanloc" | sed 's-/\.Trashes/'"$account"'$--')
+			locinfo=$(basename "$locinfo")
 		fi
-		trashed=$(find "$scanloc" -mindepth 1 -maxdepth 1 2>/dev/null | sed "s-^$scanloc/--g" | sort -f)
+		trashed=$(find "$scanloc" -mindepth 1 -maxdepth 1 2>/dev/null | sed "s-^$scanloc/--g" | sort -f | awk -v len=17 '{ if (length($0) > len) print substr($0, 1, len-3) "…" substr($0, length($0) - len, length($0)); else print; }')		
 		if [[ $trashed ]] ; then
-			alltrashed="$alltrashed\n\n🗑 $locinfo\n\n$trashed"
+			trashed=$(echo "$trashed" | grep -v "^\.DS_Store$")
+			! [[ $trashed ]] && trashed=".DS_Store"
+			alltrashed="$alltrashed\n\n🗑 $locinfo\n$trashed"
 		fi
 	done < <(_all-trashes)
 	alltrashed=$(echo -e "$alltrashed" | tail -n +3)
